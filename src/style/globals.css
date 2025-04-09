@@ -4,5 +4,6 @@
 @layer base {
   body {
     @apply bg-[#FFFEFC] text-black dark:bg-[#1b1b1f] dark:text-white;
+    font-family: var(--font-noto-sans-thai), sans-serif;
   }
 }
