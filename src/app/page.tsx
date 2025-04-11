@@ -69,8 +69,6 @@ export default function Home() {
           imageSize={100}
           contents={["TypeORM", "Authentication"]}
         />
-        {/* <JourneyCard title="Next.js" desc="New" image="" path="" />
-        <JourneyCard title="Nest.js" desc="Node" image="" path="" /> */}
       </div>
       <div className="my-10" />
     </div>

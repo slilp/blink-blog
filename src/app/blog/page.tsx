@@ -1,3 +1,6 @@
+import { MarkdownTag } from "@/markdown/content";
+import BLogPage from "./BlogPage";
+
 export default function Page() {
-  return <div>Page</div>;
+  return <BLogPage tagId={MarkdownTag.GO} />;
 }
