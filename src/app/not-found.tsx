@@ -1,5 +1,4 @@
 import MainButton from "@/component/MainButton";
-import Link from "next/link";
 import { FaHome } from "react-icons/fa";
 
 export default function NotFound() {

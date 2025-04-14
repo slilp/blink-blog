@@ -16,7 +16,6 @@ function JourneyCard({
   desc,
   image,
   imageSize,
-  path,
 }: JourneyCardProps) {
   return (
     <div className="p-5 relative rounded-2xl w-full md:w-1/3 h-80 cursor-pointer bg-gray-100 dark:bg-[#202127] border-2 border-transparent hover:border-neutral-300 dark:hover:border-neutral-500 transition duration-300">

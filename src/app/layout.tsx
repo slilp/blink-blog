@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import "@/style/globals.css";
+import type { Metadata } from "next";
 import { notoSansThai } from "@/style/font";
 
 import Layout from "@/component/Layout";

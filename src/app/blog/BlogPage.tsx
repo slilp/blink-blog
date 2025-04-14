@@ -1,5 +1,6 @@
 import Tag from "@/component/Tag";
-import { contents, MarkdownTag } from "@/markdown/content";
+import { contentMap, markdownTags, MarkdownTag } from "@/markdown/content";
+import Link from "next/link";
 
 interface BlogPageProps {
   tagId: MarkdownTag;
@@ -8,38 +9,29 @@ interface BlogPageProps {
 function BLogPage({ tagId }: BlogPageProps) {
   return (
     <div className="flex flex-col md:flex-row gap-5 pt-10">
-      <div className="w-full md:w-1/3 flex gap-2 flex-wrap h-fit">
-        <Tag tagId={MarkdownTag.GO} title="Go" currentTagId={tagId} />
-        <Tag title="Next.js" tagId={MarkdownTag.NEXT} currentTagId={tagId} />
-        <Tag title="React" tagId={MarkdownTag.REACT} currentTagId={tagId} />
-        <Tag title="Nest.js" tagId={MarkdownTag.NEST} currentTagId={tagId} />
-        <Tag
-          title="Algorythm"
-          tagId={MarkdownTag.ALGORYTHM}
-          currentTagId={tagId}
-        />
-        <Tag
-          title="TypeScript"
-          tagId={MarkdownTag.TYPESCRIPT}
-          currentTagId={tagId}
-        />
-        <Tag title="Rust" tagId={MarkdownTag.RUST} currentTagId={tagId} />
-        <Tag
-          title="Software engineer"
-          tagId={MarkdownTag.SOFTWARE_ENGINEER}
-          currentTagId={tagId}
-        />
-        <Tag title="Other" tagId={MarkdownTag.OTHER} currentTagId={tagId} />
-      </div>
-      <div>
-        {(contents[tagId] ?? contents[MarkdownTag.GO]).map((content) => (
-          <div key={content.id}>
-            <h2 className="text-2xl font-bold">{content.title}</h2>
-            <p className="text-sm text-gray-500">{content.publishedAt}</p>
-            <p className="mt-2">{content.desc}</p>
-            <div className="my-5" />
-          </div>
+      <div className="w-full md:w-1/3 flex gap-2 flex-wrap h-fit md:sticky top-20">
+        {Object.values(MarkdownTag).map((tag, index) => (
+          <Tag
+            key={`tag-${index}`}
+            tagId={tag}
+            title={markdownTags[tag]}
+            currentTagId={tagId}
+          />
         ))}
+      </div>
+      <div className="flex-1/4">
+        {(contentMap[tagId] ?? contentMap[MarkdownTag.GO]).map(
+          (content, index) => (
+            <Link key={`content-${index}`} href={`/blog/${content.id}`}>
+              <div className="cursor-pointer hover:opacity-80 transition duration-200">
+                <h2 className="text-xl font-bold">{content.title}</h2>
+                <p className="text-sm text-gray-500">{content.publishedAt}</p>
+                <p className="mt-2 text-md">{content.desc}</p>
+                <hr className="my-5 border-gray-300 dark:border-gray-700" />
+              </div>
+            </Link>
+          )
+        )}
       </div>
     </div>
   );

@@ -16,7 +16,9 @@ function MenuButton({ title, path, callback }: MenuButtonProps) {
       className="hover:text-gray-500 dark:hover:text-gray-300 text-md cursor-pointer font-semibold"
       onClick={() => {
         router.push(path);
-        callback && callback();
+        if (callback) {
+          callback();
+        }
       }}
     >
       {title}

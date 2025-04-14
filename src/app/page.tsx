@@ -20,7 +20,7 @@ export default function Home() {
         <div className="flex-1">dd</div>
       </div>
       <Link href="/profile">
-        <button className="flex items-center font-semibold gap-2 px-5 py-2 bg-[#5672CD] text-white rounded-full hover:opacity-90 hover:scale-105 transition duration-200 cursor-pointer mt-5">
+        <button className="flex items-center font-semibold gap-2 px-5 py-2 bg-red-400 text-white rounded-full hover:opacity-90 hover:scale-105 transition duration-200 cursor-pointer mt-5">
           <FaRegUser scale={20} />
           About Me
         </button>
@@ -70,6 +70,11 @@ export default function Home() {
           contents={["TypeORM", "Authentication"]}
         />
       </div>
+      <Link href="/blog">
+        <button className="flex mx-auto font-semibold px-5 py-2 border-1 border-red-400 rounded-full hover:opacity-90 hover:scale-105 transition duration-200 cursor-pointer mt-5">
+          View All Blogs
+        </button>
+      </Link>
       <div className="my-10" />
     </div>
   );
