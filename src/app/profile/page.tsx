@@ -137,7 +137,7 @@ export default function Page() {
             <div className="flex flex-col gap-1">
               <p className="text-sm">Chulalongkorn University</p>
               <p className="text-gray-500 text-sm">
-                Bachelor's degree: Industrial Engineering
+                Bachelor degree: Industrial Engineering
               </p>
               <p className="text-gray-500 text-sm">Grade: 3.08</p>
               <p className="text-gray-500 text-sm">2013 - 2017</p>
