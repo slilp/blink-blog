@@ -24,7 +24,7 @@ function BLogPage({ tagId }: BlogPageProps) {
           (content, index) => (
             <Link key={`content-${index}`} href={`/blog/${content.id}`}>
               <div className="cursor-pointer hover:opacity-80 transition duration-200">
-                <h2 className="text-xl font-bold">{content.title}</h2>
+                <h2 className="text-lg font-bold">{content.title}</h2>
                 <p className="text-sm text-gray-500">{content.publishedAt}</p>
                 <p className="mt-2 text-md">{content.desc}</p>
                 <hr className="my-5 border-gray-300 dark:border-gray-700" />

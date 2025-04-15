@@ -10,7 +10,7 @@ interface TagProps {
 
 function Tag({ tagId, currentTagId, title }: TagProps) {
   const isSelected = tagId === currentTagId;
-  const style = `flex items-center gap-2 px-4 py-2 ${
+  const style = `flex items-center gap-2 px-4 py-2 text-md ${
     isSelected ? "bg-gray-300" : "bg-gray-100"
   } dark:bg-neutral-600 ${
     isSelected && "dark:bg-neutral-800"

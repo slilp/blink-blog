@@ -19,8 +19,8 @@ function MarkdownLayout({
       <BackButton />
       <div className="md:w-2/3 mx-auto">
         <div className="my-5 md:text-center">
-          <p className="text-3xl font-semibold">{title}</p>
-          <p className="text-xl text-gray-500">{desc}</p>
+          <p className="text-2xl font-semibold">{title}</p>
+          <p className="text-lg text-gray-500">{desc}</p>
           <div className="flex gap-1 justify-between text-gray-500 text-sm mt-3 text-left">
             <div className="flex gap-2 items-center">
               <Image
