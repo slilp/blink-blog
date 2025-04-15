@@ -7,6 +7,7 @@ import {
 
 import LineButton from "@/component/LineButton";
 import ExperienceCard from "@/component/ExperienceCard";
+import SkillTag from "@/component/SkillTag";
 
 export default function Page() {
   return (
@@ -48,10 +49,15 @@ export default function Page() {
                 <LineButton />
               </div>
             </div>
-            <button className="flex items-center text-sm font-semibold gap-2 px-5 py-2 bg-neutral-600 text-white rounded-full hover:opacity-90 hover:scale-105 transition duration-200 cursor-pointer">
+            <a
+              type="button"
+              href="/SLIL_PUANGPOOM_Resume.pdf"
+              download
+              className="flex items-center text-sm font-semibold gap-2 px-5 py-2 bg-neutral-600 text-white rounded-full hover:opacity-90 hover:scale-105 transition duration-200 cursor-pointer"
+            >
               <IoDocumentTextOutline scale={20} />
               Download Resume
-            </button>
+            </a>
           </div>
         </div>
       </div>
@@ -63,8 +69,9 @@ export default function Page() {
           company="Dime! by Kiatnakin Phatra"
           logo="/dimebykkp-logo.jpeg"
           desc={[
-            "Microservice development using Nest.js and TypeScript.",
-            "Golang",
+            "Large-scale trading platform serving over half a million users, ensuring seamless and secure trading experiences.",
+            "Primarily responsible for backend development, designing, implementing, and maintaining new features using Golang, with a focus on microservices architecture, Redis for caching, RabbitMQ for messaging, and PostgreSQL for database management to ensure high performance and scalability.",
+            "Enhanced user accessibility and engagement by contributing to mobile application development using Flutter, delivering a seamless cross-platform experience.",
           ]}
           from="Oct 2023"
           to="Present"
@@ -76,7 +83,11 @@ export default function Page() {
           title="Senior Software Engineer"
           company="Ascend Group (Ascend Bit)"
           logo="/ascend-logo.jpg"
-          desc={[]}
+          desc={[
+            "New business unit of the group exploring the Blockchain industry.",
+            "Working on Web3 technologies and decentralized applications (DApps), including wallets, point systems, NFTs, and loyalty programs.",
+            "My role focuses on implementing and consulting to team member on frontend development to interact with blockchain using Next.js. I also contributed to building a design system with Storybook to support large frontend preojects.",
+          ]}
           from="Jul 2022"
           to="Oct 2023"
         />
@@ -85,7 +96,11 @@ export default function Page() {
           title="Software Engineer"
           company="LSEG (London Stock Exchange Group)"
           logo="/lseg-logo.svg"
-          desc={[]}
+          desc={[
+            "Working with global international teams on a data platform project",
+            "Mainly role as frontend developer with React.js / Redux / Jest",
+            "Standard development process with Agile",
+          ]}
           from="Jul 2021"
           to="Jun 2022"
         />
@@ -94,9 +109,15 @@ export default function Page() {
           title="Software Engineer"
           company="Hatari wireless"
           logo="/hatari-logo.png"
-          desc={[]}
+          desc={[
+            "As a software house company, I worked on many type of projects for example ecommerce, banking, point wallet, chatbot",
+            "On technical side, starting project from scratch with designing the technical flow, database schema, and APIs. I worked on both the backend using C# .NET and the frontend using React.js",
+            "On the soft skills side, I led the team, managing tasks, ensuring smooth collaboration, and overseeing project delivery. worked closely with clients to understand their requirements, communicate technical concepts effectively, and ensure their needs were met.",
+          ]}
           from="Jul 2018"
           to="Jun 2021"
+          height={60}
+          width={60}
         />
       </div>
 
@@ -126,22 +147,35 @@ export default function Page() {
       </div>
 
       <p className="text-lg">Skills</p>
-      <div className="bg-gray-100 dark:bg-[#202127] p-3 rounded-lg mt-3 mb-5 flex flex-wrap gap-2">
-        <span className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">
-          JavaScript
-        </span>
-        <span className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">
-          React
-        </span>
-        <span className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">
-          Node.js
-        </span>
-        <span className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">
-          Tailwind CSS
-        </span>
-        <span className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">
-          TypeScript
-        </span>
+      <div className="bg-gray-100 dark:bg-[#202127] p-3 rounded-lg mt-3 mb-5">
+        <p className="text-sm">Programming language</p>
+        <div className="flex flex-wrap gap-2 my-2">
+          <SkillTag label="Go" />
+          <SkillTag label="JavaScript" />
+          <SkillTag label="TypeScript" />
+        </div>
+        <p className="text-sm">Backend</p>
+        <div className="flex flex-wrap gap-2 my-2">
+          <SkillTag label="Gin" />
+          <SkillTag label="Echo" />
+          <SkillTag label="Gorm" />
+          <SkillTag label="Testify" />
+          <SkillTag label="Nest.js" />
+          <SkillTag label="TypeORM" />
+          <SkillTag label="PostgreSQL" />
+          <SkillTag label="PostgreSQL" />
+          <SkillTag label="MySQL" />
+          <SkillTag label="Redis" />
+          <SkillTag label="RabbitMQ" />
+        </div>
+        <p className="text-sm">Frontend</p>
+        <div className="flex flex-wrap gap-2 my-2">
+          <SkillTag label="React" />
+          <SkillTag label="Next.js" />
+          <SkillTag label="MUI" />
+          <SkillTag label="Tailwind" />
+          <SkillTag label="Vitest" />
+        </div>
       </div>
     </div>
   );

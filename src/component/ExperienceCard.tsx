@@ -23,8 +23,8 @@ function ExperienceCard({
 }: ExperienceCardProps) {
   return (
     <div className="flex flex-col md:flex-row gap-2 md:gap-5">
-      <div className="flex gap-7">
-        <div className="w-20 flex items-center">
+      <div className="flex gap-7 min-w-80">
+        <div className="w-20 flex items-center justify-center">
           <Image
             alt={company}
             src={logo}
@@ -33,7 +33,7 @@ function ExperienceCard({
             className="rounded-xl"
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 justify-center">
           <p className="text-sm">{company}</p>
           <p className="text-gray-500 text-sm">{title}</p>
           <p className="text-gray-500 text-sm">
@@ -49,10 +49,10 @@ function ExperienceCard({
         </div>
       </div>
 
-      <div className="flex justify-end md:w-1/2">
+      <div className="w-full">
         <ul className="list-disc list-inside text-sm">
           {desc.map((item, index) => (
-            <li key={index}>{item}</li>
+            <li key={`exp-content-${index}`}>{item}</li>
           ))}
         </ul>
       </div>
