@@ -135,7 +135,7 @@ export default function Page() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <p className="text-sm">Chulalongkorn University</p>
+              <p>Chulalongkorn University</p>
               <p className="text-gray-500 text-sm">
                 Bachelor degree: Industrial Engineering
               </p>

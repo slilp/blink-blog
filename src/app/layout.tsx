@@ -1,6 +1,6 @@
 import "@/style/globals.css";
 import type { Metadata } from "next";
-import { notoSansThai } from "@/style/font";
+import { interFont } from "@/style/font";
 
 import Layout from "@/component/Layout";
 
@@ -22,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${notoSansThai.variable} antialiased`}>
+      <body className={`${interFont.variable} antialiased`}>
         <Layout>{children}</Layout>
       </body>
     </html>

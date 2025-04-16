@@ -36,38 +36,43 @@ export default function Home() {
           title="Go"
           desc="Build simple, secure, scalable"
           image="/ladder.svg"
-          path=""
+          path="/blog/golang-ready-to-production-service-api"
           imageSize={70}
           contents={[
             "Gin",
             "DB migration",
             "Authentication",
+            "Swagger",
             "Code Generation",
             "Gorm",
             "Testify",
           ]}
+          contentsInprogress={["Redis", "RabbitMQ", "Kafka"]}
         />
         <JourneyCard
           title="Next.js"
           desc="The React Framework for the Web"
           image="/react-logo.png"
-          path=""
+          path="/blog/next-ready-to-production-web-application"
           imageSize={100}
           contents={[
             "Turborepo",
-            "Mui",
+            "App Router",
             "TanStack Query",
             "Authentication",
+            "Mui/Tailwind",
             "Vitest",
           ]}
+          contentsInprogress={["Storybook"]}
         />
         <JourneyCard
           title="NestJS"
           desc="A progressive Node.js framework"
           image="/nestjs-logo.svg"
-          path=""
+          path="/blog/nest-ready-to-production-service-api"
           imageSize={100}
-          contents={["TypeORM", "Authentication"]}
+          contents={["TypeORM", "DB migration", "Authentication", "Swagger"]}
+          contentsInprogress={["Unit test"]}
         />
       </div>
       <Link href="/blog">

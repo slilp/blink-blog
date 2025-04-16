@@ -34,7 +34,7 @@ function ExperienceCard({
           />
         </div>
         <div className="flex flex-col gap-1 justify-center">
-          <p className="text-sm">{company}</p>
+          <p>{company}</p>
           <p className="text-gray-500 text-sm">{title}</p>
           <p className="text-gray-500 text-sm">
             {from} -{" "}

@@ -1,18 +1,25 @@
 import { notFound } from "next/navigation";
-import Welcome from "@/markdown/test.mdx";
 import MarkdownLayout from "./MarkdownLayout";
-import { contentList } from "@/markdown/content";
+import { allContents } from "@/markdown/content";
 
 type Params = Promise<{ slug: string }>;
+
+export async function generateStaticParams() {
+  return allContents.map((content) => ({
+    slug: content.id,
+  }));
+}
 
 export default async function Page({ params }: { params: Params }) {
   const resolvedParams = await params;
   const contentId = resolvedParams.slug;
-  const contentInfo = contentList.find((content) => content.id === contentId);
+  const contentInfo = allContents.find((content) => content.id === contentId);
 
   if (!contentInfo) {
     notFound();
   }
+
+  const Content = (await import(`@/markdown/${contentInfo.id}.mdx`)).default;
 
   return (
     <MarkdownLayout
@@ -20,7 +27,7 @@ export default async function Page({ params }: { params: Params }) {
       publishedAt={contentInfo?.publishedAt}
       desc={contentInfo?.desc}
     >
-      <Welcome />
+      <Content />
     </MarkdownLayout>
   );
 }

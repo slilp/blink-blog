@@ -1,10 +1,11 @@
 export enum MarkdownTag {
+  ALL = "all",
   REACT = "react",
   NEXT = "next",
   NODE = "node",
   NEST = "nest",
   TYPESCRIPT = "typescript",
-  GO = "go",
+  GO = "golang",
   SOFTWARE_ENGINEER = "software-engineer",
   RUST = "rust",
   ALGORYTHM = "algorythm",
@@ -19,134 +20,61 @@ interface MarkdownContent {
 }
 
 export const markdownTags: Record<MarkdownTag, string> = {
+  [MarkdownTag.ALL]: "All",
   [MarkdownTag.REACT]: "React",
   [MarkdownTag.NEXT]: "Next.js",
   [MarkdownTag.NODE]: "Node.js",
   [MarkdownTag.NEST]: "Nest.js",
   [MarkdownTag.TYPESCRIPT]: "TypeScript",
-  [MarkdownTag.GO]: "Go",
+  [MarkdownTag.GO]: "Golang",
   [MarkdownTag.SOFTWARE_ENGINEER]: "Software Engineer",
   [MarkdownTag.RUST]: "Rust",
   [MarkdownTag.ALGORYTHM]: "Algorythm",
   [MarkdownTag.OTHER]: "Other",
 };
 
-const reactContents: MarkdownContent[] = [
-  {
-    id: MarkdownTag.REACT + "1",
-    title: "Understanding React Hooks",
-    desc: "A deep dive into React Hooks and how they simplify state management.",
-    publishedAt: "2023-01-15",
-  },
-  {
-    id: MarkdownTag.REACT + "2",
-    title: "React Performance Optimization",
-    desc: "Tips and tricks to make your React applications faster.",
-    publishedAt: "2023-03-10",
-  },
-];
+const reactContents: MarkdownContent[] = [];
 
 const nextContents: MarkdownContent[] = [
   {
-    id: MarkdownTag.NEXT + "1",
-    title: "Getting Started with Next.js",
-    desc: "A beginner's guide to building server-side rendered applications with Next.js.",
-    publishedAt: "2023-02-20",
+    id: "next-ready-to-production-web-application",
+    title: "Next.js : Ready to production web application",
+    desc: "Boilerplate pattern for creating web application in Next.js.",
+    publishedAt: "2025-04-14",
   },
 ];
 
-const typescriptContents: MarkdownContent[] = [
-  {
-    id: MarkdownTag.TYPESCRIPT + "1",
-    title: "TypeScript Basics",
-    desc: "An introduction to TypeScript and its benefits over JavaScript.",
-    publishedAt: "2023-03-25",
-  },
-  {
-    id: MarkdownTag.TYPESCRIPT + "2",
-    title: "Advanced TypeScript Features",
-    desc: "Exploring advanced features of TypeScript for better type safety.",
-    publishedAt: "2023-04-15",
-  },
-];
+const typescriptContents: MarkdownContent[] = [];
 
-const nodeContents: MarkdownContent[] = [
-  {
-    id: MarkdownTag.NODE + "1",
-    title: "Building REST APIs with Node.js",
-    desc: "Learn how to create robust REST APIs using Node.js and Express.",
-    publishedAt: "2023-04-05",
-  },
-];
+const nodeContents: MarkdownContent[] = [];
 
 const nestContents: MarkdownContent[] = [
   {
-    id: MarkdownTag.NEST + "1",
-    title: "Introduction to NestJS",
-    desc: "An overview of NestJS and its powerful features for building scalable applications.",
-    publishedAt: "2023-05-12",
+    id: "nest-ready-to-production-service-api",
+    title: "Nest.js : Ready to production service API",
+    desc: "Boilerplate pattern for creating service API in Nest.js.",
+    publishedAt: "2025-04-14",
   },
 ];
 
 const goContents: MarkdownContent[] = [
   {
-    id: MarkdownTag.GO + "1",
-    title: "Go Concurrency Patterns",
-    desc: "Explore the power of goroutines and channels in Go.",
-    publishedAt: "2023-06-18",
+    id: "golang-ready-to-production-service-api",
+    title: "Go : Ready to production service API",
+    desc: "Boilerplate pattern for creating service API in Go.",
+    publishedAt: "2025-04-15",
   },
 ];
 
-const softwareEngineerContents: MarkdownContent[] = [
-  {
-    id: MarkdownTag.SOFTWARE_ENGINEER + "1",
-    title: "Becoming a Software Engineer",
-    desc: "A roadmap to kickstart your career in software engineering.",
-    publishedAt: "2023-07-22",
-  },
-];
+const softwareEngineerContents: MarkdownContent[] = [];
 
-const rustContents: MarkdownContent[] = [
-  {
-    id: MarkdownTag.RUST + "1",
-    title: "Rust for Beginners",
-    desc: "An introduction to Rust programming language and its unique features.",
-    publishedAt: "2023-08-30",
-  },
-];
+const rustContents: MarkdownContent[] = [];
 
-const otherContents: MarkdownContent[] = [
-  {
-    id: MarkdownTag.OTHER + "1",
-    title: "Tech Trends in 2023",
-    desc: "A look at the emerging technologies shaping the future.",
-    publishedAt: "2023-09-15",
-  },
-];
+const otherContents: MarkdownContent[] = [];
 
-const algorythmContents: MarkdownContent[] = [
-  {
-    id: MarkdownTag.ALGORYTHM + "1",
-    title: "Algorithm Design Patterns",
-    desc: "Common design patterns for solving algorithmic problems.",
-    publishedAt: "2023-10-01",
-  },
-];
+const algorythmContents: MarkdownContent[] = [];
 
-export const contentMap: Record<MarkdownTag, MarkdownContent[]> = {
-  [MarkdownTag.REACT]: reactContents,
-  [MarkdownTag.NEXT]: nextContents,
-  [MarkdownTag.TYPESCRIPT]: typescriptContents,
-  [MarkdownTag.NODE]: nodeContents,
-  [MarkdownTag.NEST]: nestContents,
-  [MarkdownTag.GO]: goContents,
-  [MarkdownTag.SOFTWARE_ENGINEER]: softwareEngineerContents,
-  [MarkdownTag.RUST]: rustContents,
-  [MarkdownTag.OTHER]: otherContents,
-  [MarkdownTag.ALGORYTHM]: algorythmContents,
-};
-
-export const contentList = [
+export const allContents: MarkdownContent[] = [
   ...reactContents,
   ...nextContents,
   ...typescriptContents,
@@ -158,3 +86,17 @@ export const contentList = [
   ...otherContents,
   ...algorythmContents,
 ];
+
+export const contentMap: Record<MarkdownTag, MarkdownContent[]> = {
+  [MarkdownTag.ALL]: allContents,
+  [MarkdownTag.REACT]: reactContents,
+  [MarkdownTag.NEXT]: nextContents,
+  [MarkdownTag.TYPESCRIPT]: typescriptContents,
+  [MarkdownTag.NODE]: nodeContents,
+  [MarkdownTag.NEST]: nestContents,
+  [MarkdownTag.GO]: goContents,
+  [MarkdownTag.SOFTWARE_ENGINEER]: softwareEngineerContents,
+  [MarkdownTag.RUST]: rustContents,
+  [MarkdownTag.OTHER]: otherContents,
+  [MarkdownTag.ALGORYTHM]: algorythmContents,
+};

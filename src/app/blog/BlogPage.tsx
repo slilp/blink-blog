@@ -20,18 +20,24 @@ function BLogPage({ tagId }: BlogPageProps) {
         ))}
       </div>
       <div className="flex-1/4">
-        {(contentMap[tagId] ?? contentMap[MarkdownTag.GO]).map(
-          (content, index) => (
+        {(contentMap[tagId] ?? contentMap[MarkdownTag.ALL])
+          .sort(
+            (a, b) =>
+              new Date(b.publishedAt).getTime() -
+              new Date(a.publishedAt).getTime()
+          )
+          .map((content, index) => (
             <Link key={`content-${index}`} href={`/blog/${content.id}`}>
               <div className="cursor-pointer hover:opacity-80 transition duration-200">
                 <h2 className="text-lg font-bold">{content.title}</h2>
-                <p className="text-sm text-gray-500">{content.publishedAt}</p>
-                <p className="mt-2 text-md">{content.desc}</p>
+                <span className="text-sm text-gray-500">
+                  {content.publishedAt}
+                </span>
+                <p className="mt-2 text-md text-gray-500">{content.desc}</p>
                 <hr className="my-5 border-gray-300 dark:border-gray-700" />
               </div>
             </Link>
-          )
-        )}
+          ))}
       </div>
     </div>
   );

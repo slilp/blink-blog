@@ -1,7 +1,7 @@
-import { Noto_Sans_Thai } from "next/font/google";
+import { Inter } from "next/font/google";
 
-export const notoSansThai = Noto_Sans_Thai({
+export const interFont = Inter({
   style: ["normal"],
-  variable: "--font-noto-sans-thai",
+  variable: "--font-inter",
   subsets: ["latin"],
 });
