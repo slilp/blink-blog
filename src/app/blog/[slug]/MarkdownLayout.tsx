@@ -48,7 +48,7 @@ function MarkdownLayout({
           </div>
         </div>
         <hr className="my-5 border-gray-300 dark:border-gray-700" />
-        <div className="mx-auto">{children}</div>
+        <div className="md:flex justify-center">{children}</div>
       </div>
     </div>
   );

@@ -27,7 +27,9 @@ export default async function Page({ params }: { params: Params }) {
       publishedAt={contentInfo?.publishedAt}
       desc={contentInfo?.desc}
     >
-      <Content />
+      <div className="prose dark:prose-invert">
+        <Content />
+      </div>
     </MarkdownLayout>
   );
 }
