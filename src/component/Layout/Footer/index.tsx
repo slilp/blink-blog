@@ -8,7 +8,10 @@ function Footer() {
       <div className="container mx-auto text-center">
         <div>
           <IconButton path="https://github.com/slilp" icon={FaGithub} />
-          <IconButton path="https://github.com/slilp" icon={FaLinkedin} />
+          <IconButton
+            path="https://www.linkedin.com/in/slil-puangpoom-1926b5154/"
+            icon={FaLinkedin}
+          />
         </div>
         <p className="text-sm pt-1">
           © {new Date().getFullYear()} Blink Blog. All rights reserved.

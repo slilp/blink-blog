@@ -31,12 +31,6 @@ export const markdownTags: Record<MarkdownTag, string> = {
 
 const nextContents: MarkdownContent[] = [
   {
-    id: "next-ready-to-production-web-application",
-    title: "Full series Next.js : Ready to production web application",
-    desc: "Boilerplate pattern for creating web application in Next.js.",
-    publishedAt: "2025-04-13",
-  },
-  {
     id: "react-unit-test",
     title: "Vitest React",
     desc: "Unit test for React component with Vitest",
@@ -53,22 +47,9 @@ const typescriptContents: MarkdownContent[] = [
   },
 ];
 
-const nodeContents: MarkdownContent[] = [
-  {
-    id: "nest-ready-to-production-service-api",
-    title: "Full series Nest.js : Ready to production service API",
-    desc: "Boilerplate pattern for creating service API in Nest.js.",
-    publishedAt: "2025-04-13",
-  },
-];
+const nodeContents: MarkdownContent[] = [];
 
 const goContents: MarkdownContent[] = [
-  {
-    id: "golang-ready-to-production-service-api",
-    title: "Full series Go : Ready to production service API",
-    desc: "Boilerplate pattern for creating service API in Go.",
-    publishedAt: "2025-04-19",
-  },
   {
     id: "goroutines-and-channels",
     title: "Are you having a hard time understanding Goroutines and Channels?",

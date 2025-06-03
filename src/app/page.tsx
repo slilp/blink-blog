@@ -1,8 +1,19 @@
 import JourneyCard from "@/component/JourneyCard";
+import { MarkdownTag } from "@/markdown/content";
 import Link from "next/link";
 import { FaRegUser } from "react-icons/fa";
 
 export default function Home() {
+  const getRandomTag = () => {
+    const tags = Object.values(MarkdownTag).filter(
+      (tag) =>
+        tag !== MarkdownTag.GO &&
+        tag !== MarkdownTag.NEXT &&
+        tag !== MarkdownTag.NODE
+    );
+    return tags[Math.floor(Math.random() * tags.length)];
+  };
+
   return (
     <div className="mt-5 md:md-10">
       <div className="flex flex-col gap-1 justify-center items-center py-10">
@@ -33,44 +44,26 @@ export default function Home() {
         <JourneyCard
           title="Go"
           desc="Build simple, secure, scalable"
-          image="/ladder.svg"
-          path="/blog/golang-ready-to-production-service-api"
-          imageSize={70}
-          contents={[
-            "Gin",
-            "DB migration",
-            "Authentication",
-            "Swagger",
-            "Code Generation",
-            "Gorm",
-            "Testify",
-          ]}
-          contentsInprogress={["Redis", "RabbitMQ", "Kafka"]}
+          image="/golang-icon.png"
+          path="/blog/tag/golang"
         />
         <JourneyCard
           title="Next.js"
           desc="The React Framework for the Web"
           image="/react-logo.png"
-          path="/blog/next-ready-to-production-web-application"
-          imageSize={100}
-          contents={[
-            "Turborepo",
-            "App Router",
-            "TanStack Query",
-            "Authentication",
-            "Mui/Tailwind",
-            "Vitest",
-          ]}
-          contentsInprogress={["Storybook"]}
+          path="/blog/tag/next"
         />
         <JourneyCard
           title="NestJS"
           desc="A progressive Node.js framework"
           image="/nestjs-logo.svg"
-          path="/blog/nest-ready-to-production-service-api"
-          imageSize={100}
-          contents={["TypeORM", "DB migration", "Authentication", "Swagger"]}
-          contentsInprogress={["Unit test"]}
+          path="/blog/tag/node"
+        />
+        <JourneyCard
+          title="Random"
+          desc="Random topic to explore!"
+          image="/chill-guy.png"
+          path={`/blog/tag/${getRandomTag()}`}
         />
       </div>
       <Link href="/blog">

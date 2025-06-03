@@ -8,6 +8,8 @@ import {
 import LineButton from "@/component/LineButton";
 import ExperienceCard from "@/component/ExperienceCard";
 import SkillTag from "@/component/SkillTag";
+import IconButton from "@/component/IconButton";
+import { FaGithub, FaLine, FaLinkedin } from "react-icons/fa6";
 
 export default function Page() {
   return (
@@ -25,7 +27,7 @@ export default function Page() {
           alt="Profile"
           height={125}
           width={125}
-          className="rounded-full absolute -left-10 -top-20 translate-x-1/2 border-2 border-white"
+          className="rounded-full absolute left-1/2 md:-left-10 -top-20 -translate-x-1/2 md:translate-x-1/2 border-2 border-white"
         />
         <div className="bg-gray-100 dark:bg-[#202127] rounded-lg rounded-t-none p-3">
           <div className="h-12" />
@@ -44,9 +46,27 @@ export default function Page() {
                 </div>
                 <div className="flex gap-2 items-center">
                   <IoCallOutline />
-                  <p>087-500-6783</p>
+                  <a href="tel:0875006783">
+                    <p>087-500-6783</p>
+                  </a>
                 </div>
-                <LineButton />
+                <div>
+                  <IconButton
+                    path="https://github.com/slilp"
+                    icon={FaGithub}
+                    size={20}
+                  />
+                  <IconButton
+                    path="https://www.linkedin.com/in/slil-puangpoom-1926b5154/"
+                    icon={FaLinkedin}
+                    size={20}
+                  />
+                  <IconButton
+                    path="https://www.linkedin.com/in/slil-puangpoom-1926b5154/"
+                    icon={FaLine}
+                    size={20}
+                  />
+                </div>
               </div>
             </div>
             <a
