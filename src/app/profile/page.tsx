@@ -5,7 +5,6 @@ import {
   IoCallOutline,
 } from "react-icons/io5";
 
-import LineButton from "@/component/LineButton";
 import ExperienceCard from "@/component/ExperienceCard";
 import SkillTag from "@/component/SkillTag";
 import IconButton from "@/component/IconButton";
