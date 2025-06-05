@@ -13,7 +13,7 @@ function NavBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 bg-[#FFFEFC] dark:bg-[#1b1b1f] md:border-b-1 border-gray-200 dark:border-gray-700">
+    <nav className="fixed top-0 left-0 w-full z-50 bg-[#FFFEFC] dark:bg-[#18191a] md:border-b-1 border-gray-200 dark:border-gray-700">
       <div className="container mx-auto flex items-center justify-between p-2">
         <div
           className="flex gap-2 text-lg font-bold cursor-pointer"
