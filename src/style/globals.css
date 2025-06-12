@@ -11,4 +11,8 @@
   body {
     @apply bg-[#FFFEFC] text-black dark:bg-[#18191a] dark:text-white;
   }
+
+  p {
+    @apply text-black dark:text-white;
+  }
 }

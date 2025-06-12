@@ -1,17 +1,11 @@
 import JourneyCard from "@/component/JourneyCard";
-import { MarkdownTag } from "@/markdown/content";
+import { allContents } from "@/markdown/content";
 import Link from "next/link";
 import { FaRegUser } from "react-icons/fa";
 
 export default function Home() {
-  const getRandomTag = () => {
-    const tags = Object.values(MarkdownTag).filter(
-      (tag) =>
-        tag !== MarkdownTag.GO &&
-        tag !== MarkdownTag.NEXT &&
-        tag !== MarkdownTag.NODE
-    );
-    return tags[Math.floor(Math.random() * tags.length)];
+  const getRandomTopic = () => {
+    return allContents[Math.floor(Math.random() * allContents.length)].id;
   };
 
   return (
@@ -42,28 +36,23 @@ export default function Home() {
       </p>
       <div className="mt-5 flex flex-col justify-between md:flex-row gap-5">
         <JourneyCard
-          title="Go"
-          desc="Build simple, secure, scalable"
-          image="/golang-icon.png"
-          path="/blog/tag/golang"
-        />
-        <JourneyCard
-          title="Next.js"
-          desc="The React Framework for the Web"
-          image="/react-logo.png"
+          title="JS/TS"
+          desc="JavaScript and TypeScript"
+          image1="/react-logo.png"
+          image2="/nestjs-logo.svg"
           path="/blog/tag/next"
         />
         <JourneyCard
-          title="NestJS"
-          desc="A progressive Node.js framework"
-          image="/nestjs-logo.svg"
-          path="/blog/tag/node"
+          title="Go"
+          desc="Build simple, secure, scalable"
+          image1="/golang-icon.png"
+          path="/blog/tag/golang"
         />
         <JourneyCard
-          title="Random"
+          title="?"
           desc="Random topic to explore!"
-          image="/chill-guy.png"
-          path={`/blog/tag/${getRandomTag()}`}
+          image1="/chill-guy.png"
+          path={`/blog/${getRandomTopic()}`}
         />
       </div>
       <Link href="/blog">

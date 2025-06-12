@@ -1,10 +1,13 @@
 import BackButton from "@/component/BackButton";
+import { MarkdownTag, markdownTags } from "@/markdown/content";
 import Image from "next/image";
+import Link from "next/link";
 
 interface MarkdownLayoutProp {
   title: string;
   desc: string;
   publishedAt: string;
+  tag: MarkdownTag;
   children: React.ReactNode;
 }
 
@@ -12,6 +15,7 @@ function MarkdownLayout({
   title,
   desc,
   publishedAt,
+  tag,
   children,
 }: MarkdownLayoutProp) {
   return (
@@ -40,11 +44,16 @@ function MarkdownLayout({
                   </span>
                   AI-powered
                 </p>
+                <span className="font-semibold">Published:</span> {publishedAt}
               </div>
             </div>
-            <p>
-              <span className="font-semibold">Published:</span> {publishedAt}
-            </p>
+            <div className="flex flex-col items-center">
+              <Link href={`/blog/tag/${tag}`}>
+                <button className="flex items-center border gap-2 px-4 py-2 text-md hover:opacity-85 rounded-full cursor-pointer transition duration-200">
+                  {markdownTags[tag]}
+                </button>
+              </Link>
+            </div>
           </div>
         </div>
         <hr className="my-5 border-gray-300 dark:border-gray-700" />

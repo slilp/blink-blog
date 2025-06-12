@@ -26,6 +26,7 @@ export default async function Page({ params }: { params: Params }) {
       title={contentInfo?.title}
       publishedAt={contentInfo?.publishedAt}
       desc={contentInfo?.desc}
+      tag={contentInfo?.tag}
     >
       <div className="prose dark:prose-invert">
         <Content />

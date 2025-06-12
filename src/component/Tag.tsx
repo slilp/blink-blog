@@ -4,7 +4,7 @@ import React from "react";
 
 interface TagProps {
   tagId: MarkdownTag;
-  currentTagId: MarkdownTag;
+  currentTagId?: MarkdownTag;
   title: string;
 }
 
