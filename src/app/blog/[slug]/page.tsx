@@ -19,14 +19,20 @@ export default async function Page({ params }: { params: Params }) {
     notFound();
   }
 
-  const Content = (await import(`@/markdown/${contentInfo.id}.mdx`)).default;
+  let Content;
+  try {
+    Content = (await import(`@/markdown/${contentInfo.id}.mdx`)).default;
+  } catch (error) {
+    console.error(`Failed to load content for ${contentInfo.id}:`, error);
+    notFound();
+  }
 
   return (
     <MarkdownLayout
-      title={contentInfo?.title}
-      publishedAt={contentInfo?.publishedAt}
-      desc={contentInfo?.desc}
-      tag={contentInfo?.tag}
+      title={contentInfo.title}
+      publishedAt={contentInfo.publishedAt}
+      desc={contentInfo.desc}
+      tag={contentInfo.tag}
     >
       <div className="prose dark:prose-invert">
         <Content />

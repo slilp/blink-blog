@@ -33,14 +33,22 @@ const goContents: MarkdownContent[] = [
     id: "goroutines-and-channels",
     title: "Are you having a hard time understanding Goroutines and Channels?",
     desc: "Goroutines and Channels are advanced concepts in Go. This article will help you understand them better (or not 😥).",
-    publishedAt: "2025-04-14",
+    publishedAt: "2025-06-10",
     tag: MarkdownTag.GO,
   },
 ];
 
 const softwareEngineerContents: MarkdownContent[] = [];
 
-const otherContents: MarkdownContent[] = [];
+const otherContents: MarkdownContent[] = [
+  {
+    id: "postman-scripts",
+    title: "Postman Scripts",
+    desc: "How to use Postman pre/post script",
+    publishedAt: "2025-06-15",
+    tag: MarkdownTag.OTHER,
+  },
+];
 
 const algorythmContents: MarkdownContent[] = [];
 

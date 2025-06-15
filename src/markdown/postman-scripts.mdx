@@ -1,0 +1,131 @@
+I know that the first feature you use in Postman is making API requests with its user-friendly interface. The next Postman feature I highly recommend is **scripts**.
+
+Postman allows you to handle **Pre-request** and **Post-response** scripts. Trust me, these will significantly improve your workflow.
+
+## Post-response
+
+When working with APIs that require authentication, such as bearer authentication, there are typically two steps you need to take to set up the access token in Postman:
+
+1. POST to the login API to get the access token:
+
+<img
+  src="/blog/postman-scripts_1.png"
+  alt="Postman Auto Set Token Example"
+  style={{ maxWidth: "100%" }}
+/>
+
+2. Copy & Paste to set the access token to an environment variable
+
+<img
+  src="/blog/postman-scripts_2.png"
+  alt="Postman Auto Set Token Example"
+  style={{ maxWidth: "100%" }}
+/>
+
+> You might have noticed that copying and pasting the token every time it expires is quite time-consuming. This is where Post-response scripts come in to save the day!
+
+This script will help you:
+
+<img
+  src="/blog/postman-scripts_3.png"
+  alt="Postman Auto Set Token Example"
+  style={{ maxWidth: "100%" }}
+/>
+
+```javascript
+// Parse the response body as JSON
+const response = pm.response.json();
+
+// Check if the accessToken exists in the response
+if (response && response.accessToken) {
+  const accessToken = response.accessToken;
+
+  // Set the accessToken as a Postman Environment Variable
+  pm.environment.set("bearerToken", accessToken);
+
+  console.log("Postman Environment Variable 'bearerToken' set successfully.");
+  console.log("Value:", pm.environment.get("bearerToken"));
+} else {
+  console.error(
+    "Access token not found in the response or response is not valid JSON."
+  );
+}
+
+// Optional: Add a test to ensure the access token is present
+pm.test("Access Token is present", function () {
+  pm.expect(response.accessToken).to.be.a("string");
+  pm.expect(response.accessToken).to.not.be.empty;
+});
+```
+
+After you run this API call again, it will automatically extract the accessToken from the response and set it in your environment with just one click!
+
+<img
+  src="/blog/postman-scripts_4.png"
+  alt="Postman Auto Set Token Example"
+  style={{ maxWidth: "100%" }}
+/>
+
+## Pre-request
+
+Pre-request scripts are useful when you need to set up data or conditions before making an API request. Here's a practical example:
+
+Let's say you want your team to send coverImage in URL format only to avoid incorrect data:
+
+```javascript
+const requestBodyDetails = pm.request.body.toJSON();
+
+let requestBody;
+
+if (
+  requestBodyDetails &&
+  requestBodyDetails.mode === "raw" &&
+  requestBodyDetails.raw
+) {
+  try {
+    requestBody = JSON.parse(requestBodyDetails.raw);
+  } catch (e) {
+    console.error("Validation Error: Request body is not valid JSON.", e);
+    pm.test("Request body is valid JSON", () => {
+      throw new Error("Request body is not valid JSON.");
+    });
+    return;
+  }
+} else {
+  console.log(
+    "Request body is not raw JSON or is empty. Skipping coverImage URL validation."
+  );
+  return;
+}
+
+if (requestBody && requestBody.coverImage) {
+  const coverImage = requestBody.coverImage;
+
+  const urlRegex = new RegExp(
+    "^(https?:\\/\\/)?" + // protocol (optional)
+      "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // domain name
+      "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+      "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
+      "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
+      "(\\#[-a-z\\d_]*)?$", // fragment locator
+    "i"
+  );
+
+  if (!urlRegex.test(coverImage)) {
+    console.error("Validation Error: 'coverImage' must be a valid URL.");
+    throw new Error("'coverImage' must be a valid URL.");
+  }
+}
+```
+
+This script will block the request if an invalid format is detected:
+
+<img
+  src="/blog/postman-scripts_5.png"
+  alt="Postman Auto Set Token Example"
+  style={{ maxWidth: "100%" }}
+/>
+
+## Conclusion
+
+In summary, Postman scripts provide powerful automation capabilities that can significantly enhance your API testing workflow. By implementing the Pre-request and Post-response scripts demonstrated in this guide, you can streamline your authentication processes and ensure data validation. These automation techniques not only save time but also reduce the potential for human error in your API testing procedures. As you continue to work with APIs, consider exploring more advanced scripting features in Postman to further optimize your development and testing processes.

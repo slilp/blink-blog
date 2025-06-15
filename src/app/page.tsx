@@ -36,21 +36,21 @@ export default function Home() {
       </p>
       <div className="mt-5 flex flex-col justify-between md:flex-row gap-5">
         <JourneyCard
-          title="JS/TS"
-          desc="JavaScript and TypeScript"
+          title="JavaScript & TypeScript"
+          desc=""
           image1="/react-logo.png"
           image2="/nestjs-logo.svg"
           path="/blog/tag/next"
         />
         <JourneyCard
-          title="Go"
+          title="Go :"
           desc="Build simple, secure, scalable"
           image1="/golang-icon.png"
           path="/blog/tag/golang"
         />
         <JourneyCard
-          title="?"
-          desc="Random topic to explore!"
+          title="Random topic to explore!"
+          desc=""
           image1="/chill-guy.png"
           path={`/blog/${getRandomTopic()}`}
         />
