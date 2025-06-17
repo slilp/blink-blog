@@ -1,0 +1,207 @@
+SQL injection is one of the most common and dangerous web application vulnerabilities. It occurs when an attacker manipulates SQL queries by injecting malicious SQL code through user input. In this article, we'll explore SQL injection attacks and learn how to prevent them in Go applications.
+
+Here's an example:
+
+```go
+package main
+
+import (
+    "database/sql"
+    "github.com/gin-gonic/gin"
+    _ "github.com/lib/pq"
+)
+
+func main() {
+    db, err := sql.Open("postgres", "postgres://user:password@localhost/kangsang_db?sslmode=disable")
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    r := gin.Default()
+
+    r.DELETE("/user", func(c *gin.Context) {
+        email := c.Query("email")
+
+        query := `DELETE FROM "user" WHERE email = $1`
+
+        result, err := db.Exec(query, email)
+        if err != nil {
+            c.JSON(500, gin.H{"error": "Database error: " + err.Error()})
+            return
+        }
+
+        rowsAffected, err := result.RowsAffected()
+        if err != nil {
+            c.JSON(500, gin.H{"error": "Could not get rows affected: " + err.Error()})
+            return
+        }
+
+        if rowsAffected == 0 {
+            c.JSON(404, gin.H{"message": "No user found or deleted with that email."})
+        } else {
+            c.JSON(200, gin.H{"message": "User(s) deleted successfully!", "rows_affected": rowsAffected})
+        }
+    })
+
+    r.Run(":8080")
+}
+```
+
+In this code example, the normal case of delete by email API is:
+
+<img
+  src="/blog/sql-injection_1.png"
+  alt="sql-injection_1"
+  style={{ maxWidth: "100%" }}
+/>
+
+You can see that only 1 record effect to be deleted as it should be.
+
+However, this code is vulnerable to SQL injection. An attacker could manipulate the email parameter to perform malicious actions. For example:
+
+```
+email=test@example.com' OR '1'='1
+```
+
+This would result in the query:
+
+```sql
+DELETE FROM "user" WHERE email = 'test@example.com' OR '1'='1'
+```
+
+Let's see what happen !!!!
+
+<img
+  src="/blog/sql-injection_2.png"
+  alt="sql-injection_2"
+  style={{ maxWidth: "100%" }}
+/>
+
+<img
+  src="/blog/sql-injection_3.png"
+  alt="sql-injection_3"
+  style={{ maxWidth: "100%" }}
+/>
+
+This malicious input would delete ALL users in the database because the OR condition '1'='1' is always true!
+
+## 🛠️ Fix It
+
+To prevent this, we should use:
+
+### 1. Parameterized queries
+
+The parameterized query ensures that the email value is properly escaped and treated as a parameter, not as part of the SQL query itself. This prevents SQL injection attacks by separating the SQL code from the data.
+
+```go
+r.DELETE("/user", func(c *gin.Context) {
+    email := c.Query("email")
+
+    // SECURE: Using parameterized query
+    query := `DELETE FROM "user" WHERE email = $1`
+
+    result, err := db.Exec(query, email)
+    if err != nil {
+        c.JSON(500, gin.H{"error": "Database error: " + err.Error()})
+        return
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        c.JSON(500, gin.H{"error": "Could not get rows affected: " + err.Error()})
+        return
+    }
+
+    if rowsAffected == 0 {
+        c.JSON(404, gin.H{"message": "No user found or deleted with that email."})
+    } else {
+        c.JSON(200, gin.H{"message": "User(s) deleted successfully!", "rows_affected": rowsAffected})
+    }
+})
+```
+
+When using parameterized queries, if an attacker tries to inject malicious SQL like `test@example.com' OR '1'='1`, the database driver will treat the entire string as a single parameter value. The actual SQL query would look like this:
+
+```sql
+DELETE FROM "user" WHERE email = 'test@example.com'' OR ''1''=''1'
+```
+
+Let's see the result
+
+<img
+  src="/blog/sql-injection_4.png"
+  alt="sql-injection_4"
+  style={{ maxWidth: "100%" }}
+/>
+
+It look like what we want ✅
+
+This means it will only try to delete users where the email column exactly matches the string `test@example.com' OR '1'='1`, which is not a valid email address.
+
+### 2. Using GORM
+
+Another effective way to prevent SQL injection is by using an Object-Relational Mapping (ORM) library like GORM. GORM automatically handles parameterization and provides a more type-safe way to interact with the database:
+
+```go
+package main
+
+import (
+    "github.com/gin-gonic/gin"
+    "gorm.io/gorm"
+    "gorm.io/driver/postgres"
+)
+
+type User struct {
+    ID          string `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+    Email       string `gorm:"uniqueIndex;not null"`
+    Password    string `gorm:"not null"`
+    DisplayName string `gorm:"not null"`
+    DisplayImg  string
+    Phone       string
+    Address     string
+    Role        string `gorm:"default:USER;check:role IN ('USER', 'ADMIN')"`
+    CreatedAt   time.Time
+    UpdatedAt   time.Time
+}
+
+func main() {
+    db, err := gorm.Open(postgres.Open("postgres://user:password@localhost/kangsang_db?sslmode=disable"), &gorm.Config{})
+    if err != nil {
+        panic(err)
+    }
+
+    sqlDB, err := db.DB()
+    if err != nil {
+        panic(err)
+    }
+    defer sqlDB.Close()
+
+    r := gin.Default()
+
+    r.DELETE("/user", func(c *gin.Context) {
+        email := c.Query("email")
+
+        // SECURE: Using GORM
+        result := db.Where("email = ?", email).Delete(&User{})
+        if result.Error != nil {
+            c.JSON(500, gin.H{"error": "Database error: " + result.Error.Error()})
+            return
+        }
+
+        if result.RowsAffected == 0 {
+            c.JSON(404, gin.H{"message": "No user found or deleted with that email."})
+        } else {
+            c.JSON(200, gin.H{"message": "User(s) deleted successfully!", "rows_affected": result.RowsAffected})
+        }
+    })
+
+    r.Run(":8080")
+}
+```
+
+## Conclusion
+
+SQL injection remains a significant threat to web applications. By following these best practices and using parameterized queries, you can build secure applications that are resistant to SQL injection attacks.
+
+> In web security, prevention is better than cure - a single unparameterized query can be the key that opens the door to your entire database! 🔒

@@ -4,6 +4,7 @@ export enum MarkdownTag {
   TYPESCRIPT = "typescript",
   SOFTWARE_DESIGN = "software-design",
   ALGORYTHM = "algorythm",
+  SECURITY = "security",
   DATABASE = "database",
   OTHER = "other",
 }
@@ -23,6 +24,7 @@ export const markdownTags: Record<MarkdownTag, string> = {
   [MarkdownTag.SOFTWARE_DESIGN]: "Software Design",
   [MarkdownTag.ALGORYTHM]: "DSA",
   [MarkdownTag.DATABASE]: "Database",
+  [MarkdownTag.SECURITY]: "Security",
   [MarkdownTag.OTHER]: "Whatever I Want",
 };
 
@@ -32,7 +34,7 @@ const goContents: MarkdownContent[] = [
   {
     id: "goroutines-and-channels",
     title: "Are you having a hard time understanding Goroutines and Channels?",
-    desc: "Goroutines and Channels are advanced concepts in Go. This article will help you understand them better (or not 😥).",
+    desc: "Goroutines and Channels are advanced concepts in Go. This article will help you understand them better (or not 😂).",
     publishedAt: "2025-06-10",
     tag: MarkdownTag.GO,
   },
@@ -54,6 +56,16 @@ const algorythmContents: MarkdownContent[] = [];
 
 const databaseContents: MarkdownContent[] = [];
 
+const securityContents: MarkdownContent[] = [
+  {
+    id: "sql-injection",
+    title: "SQL Injection",
+    desc: "When hackers try to talk to your database 😱",
+    publishedAt: "2025-06-16",
+    tag: MarkdownTag.SECURITY,
+  },
+];
+
 export const allContents: MarkdownContent[] = [
   ...typescriptContents,
   ...goContents,
@@ -61,6 +73,7 @@ export const allContents: MarkdownContent[] = [
   ...otherContents,
   ...algorythmContents,
   ...databaseContents,
+  ...securityContents,
 ];
 
 export const contentMap: Record<MarkdownTag, MarkdownContent[]> = {
@@ -71,4 +84,5 @@ export const contentMap: Record<MarkdownTag, MarkdownContent[]> = {
   [MarkdownTag.OTHER]: otherContents,
   [MarkdownTag.ALGORYTHM]: algorythmContents,
   [MarkdownTag.DATABASE]: databaseContents,
+  [MarkdownTag.SECURITY]: securityContents,
 };
