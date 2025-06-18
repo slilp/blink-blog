@@ -28,13 +28,21 @@ export const markdownTags: Record<MarkdownTag, string> = {
   [MarkdownTag.OTHER]: "Whatever I Want",
 };
 
-const typescriptContents: MarkdownContent[] = [];
+const typescriptContents: MarkdownContent[] = [
+  {
+    id: "swiss-knife-typescript",
+    title: "Swiss knife typescript",
+    desc: "A comprehensive guide to essential TypeScript utilities you should know.",
+    publishedAt: "2025-06-18",
+    tag: MarkdownTag.TYPESCRIPT,
+  },
+];
 
 const goContents: MarkdownContent[] = [
   {
     id: "goroutines-and-channels",
     title: "Are you having a hard time understanding Goroutines and Channels?",
-    desc: "Goroutines and Channels are advanced concepts in Go. This article will help you understand them better (or not 😂).",
+    desc: "Goroutines and Channels are advanced concepts in Go. This article will help you understand them better (or not).",
     publishedAt: "2025-06-10",
     tag: MarkdownTag.GO,
   },
@@ -60,7 +68,7 @@ const securityContents: MarkdownContent[] = [
   {
     id: "sql-injection",
     title: "SQL Injection",
-    desc: "When hackers try to talk to your database 😱",
+    desc: "When hackers try to talk to your database",
     publishedAt: "2025-06-16",
     tag: MarkdownTag.SECURITY,
   },

@@ -1,0 +1,394 @@
+TypeScript is a powerful language that adds static typing to JavaScript.
+
+I know typescript have a lot of fantastic utilities and patterns. I will not show you all of them but selected by usecases you mostly found in your daily.
+
+## 1. Handling API Responses with Generics
+
+When you have multiple API endpoints that return different data structures but follow the same pattern:
+
+```typescript
+// Generic API Response type
+interface ApiResponse<T> {
+  data: T;
+  status: number;
+  message: string;
+}
+
+// Different data types
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+interface Product {
+  id: number;
+  title: string;
+  price: number;
+}
+
+// Usage
+const userResponse: ApiResponse<User> = {
+  data: {
+    id: 1,
+    name: "John",
+    email: "john@example.com",
+  },
+  status: 200,
+  message: "Success",
+};
+
+const productResponse: ApiResponse<Product> = {
+  data: {
+    id: 1,
+    title: "Laptop",
+    price: 999,
+  },
+  status: 200,
+  message: "Success",
+};
+```
+
+## 2. Combining Multiple Interfaces
+
+When you need to merge multiple interfaces into one:
+
+```typescript
+interface User {
+  name: string;
+  age: number;
+}
+
+interface Address {
+  street: string;
+  city: string;
+}
+
+// Method 1: Using intersection type
+type UserWithAddress = User & Address;
+
+// Method 2: Using interface extension
+interface UserWithAddress2 extends User, Address {}
+
+// Usage
+const user: UserWithAddress = {
+  name: "John",
+  age: 30,
+  street: "123 Main St",
+  city: "New York",
+};
+```
+
+## 3. Creating Interfaces with Excluded Fields
+
+When you need to use an interface but exclude certain fields with `Omit`:
+
+```typescript
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Exclude sensitive fields
+type PublicUser = Omit<User, "password" | "email">;
+
+// Usage examples
+const publicUser: PublicUser = {
+  id: 1,
+  name: "John",
+  role: "user",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  // password and email are excluded
+};
+```
+
+## 4. Make Optional Field
+
+The `Partial` utility type makes all properties of a type optional. This is particularly useful for update operations, form handling, and optional configurations.
+
+```typescript
+// Basic usage of Partial
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  description: string;
+  inStock: boolean;
+}
+
+// All fields become optional
+type PartialProduct = Partial<Product>;
+
+// Equivalent to:
+// {
+//   id?: number;
+//   name?: string;
+//   price?: number;
+//   description?: string;
+//   inStock?: boolean;
+// }
+
+// Usage examples
+const updateProduct: PartialProduct = {
+  name: "New Name", // Only update the name
+  price: 99.99, // And the price
+  // Other fields are optional
+};
+
+// Form handling example
+type ProductForm = Partial<Product>;
+
+const newProductForm: ProductForm = {
+  // Empty form - all fields are optional
+};
+
+// Update specific fields
+const updateForm: ProductForm = {
+  name: "Updated Name",
+  price: 149.99,
+  // Other fields remain optional
+};
+
+// Nested objects with Partial
+interface Order {
+  id: number;
+  customer: {
+    name: string;
+    email: string;
+    address: string;
+  };
+  items: Product[];
+}
+
+// Make customer fields optional
+type PartialOrder = {
+  id: number;
+  customer: Partial<Order["customer"]>;
+  items: Product[];
+};
+
+// Usage
+const orderUpdate: PartialOrder = {
+  id: 1,
+  customer: {
+    address: "New Address", // Only update address
+    // name and email remain optional
+  },
+  items: [], // Required as it's not wrapped in Partial
+};
+```
+
+## 5. Create Interface with Specific Field
+
+The `Pick` utility type creates a new type by selecting a set of properties from an existing type. This is useful when you need a subset of properties from a larger type.
+
+```typescript
+// Basic interface
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lastLogin: Date;
+  preferences: {
+    theme: string;
+    notifications: boolean;
+  };
+}
+
+// Pick specific fields for different views
+type UserProfile = Pick<User, "id" | "name" | "email" | "role">;
+type UserTimestamps = Pick<User, "createdAt" | "updatedAt" | "lastLogin">;
+type UserPreferences = Pick<User, "preferences">;
+
+// Usage examples
+const profile: UserProfile = {
+  id: 1,
+  name: "John Doe",
+  email: "john@example.com",
+  role: "user",
+  // Only these fields are allowed
+};
+
+const timestamps: UserTimestamps = {
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  lastLogin: new Date(),
+};
+
+const preferences: UserPreferences = {
+  preferences: {
+    theme: "dark",
+    notifications: true,
+  },
+};
+```
+
+## 6. Using Indexed Types with String Keys
+
+When you need to create a type with dynamic string keys:
+
+```typescript
+// Basic indexed type
+type StringMap = {
+  [key: string]: string;
+};
+
+// Usage
+const translations: StringMap = {
+  hello: "สวัสดี",
+  goodbye: "ลาก่อน",
+  welcome: "ยินดีต้อนรับ",
+};
+
+// With specific keys and fallback
+type Config = {
+  [key: string]: string | number;
+  port: number; // Must be number
+  host: string; // Must be string
+};
+
+// Usage
+const config: Config = {
+  port: 3000,
+  host: "localhost",
+  timeout: "30s", // Can be string
+  retries: 3, // Can be number
+};
+
+// With readonly modifier
+type ReadonlyStringMap = {
+  readonly [key: string]: string;
+};
+
+// Usage
+const constants: ReadonlyStringMap = {
+  API_URL: "https://api.example.com",
+  VERSION: "1.0.0",
+};
+// constants.API_URL = "new-url"; // Error: Cannot assign to read-only property
+```
+
+## 7. Creating Interfaces from Enums
+
+When you need to create an interface based on enum values:
+
+```typescript
+enum UserRole {
+  ADMIN = "admin",
+  USER = "user",
+  GUEST = "guest",
+}
+
+// Create interface with enum values as keys
+type RolePermissions = {
+  [K in UserRole]: boolean;
+};
+
+// Usage
+const permissions: RolePermissions = {
+  [UserRole.ADMIN]: true,
+  [UserRole.USER]: false,
+  [UserRole.GUEST]: false,
+};
+```
+
+## 8. Extracting Types from Functions
+
+When you need to extract types from function returns:
+
+```typescript
+// Example function
+function fetchUser(id: number) {
+  return {
+    id,
+    name: "John",
+    email: "john@example.com",
+    role: "user",
+  };
+}
+
+// Extract return type
+type User = ReturnType<typeof fetchUser>;
+
+// Usage
+const user: User = {
+  id: 1,
+  name: "John",
+  email: "john@example.com",
+  role: "user",
+};
+
+// Type-safe function that uses the same return type
+function processUser(id: number): User {
+  return fetchUser(id);
+}
+```
+
+## Bonus
+
+### Interface vs Type: Key Differences
+
+```typescript
+// 1. Declaration Merging
+interface User {
+  name: string;
+}
+interface User {
+  // This is allowed - interfaces can be merged
+  age: number;
+}
+// Result: User has both name and age
+
+type UserType = {
+  name: string;
+};
+// type UserType = { age: number }  // Error: Duplicate identifier
+
+// 2. Extends vs Intersection
+interface Animal {
+  name: string;
+}
+interface Dog extends Animal {
+  // Clean and straightforward
+  breed: string;
+}
+
+type AnimalType = {
+  name: string;
+};
+type DogType = AnimalType & {
+  // More flexible but less readable
+  breed: string;
+};
+
+// 3. Union Types
+type Status = "pending" | "approved" | "rejected"; // Can't do this with interface
+type ID = string | number; // Can't do this with interface
+
+// 4. Mapped Types
+type Readonly<T> = {
+  readonly [P in keyof T]: T[P]; // Can't do this with interface
+};
+
+// 5. Utility Types
+type PartialUser = Partial<UserType>; // Works with both
+type ReadonlyUser = Readonly<UserType>; // Works with both
+
+// 6. Computed Properties
+type Keys = "firstname" | "surname";
+type NameType = {
+  [key in Keys]: string; // Can't do this with interface
+};
+```
+
+> TypeScript is like a good friend who points out your mistakes before they become problems - it might be a bit strict at times, but it's always looking out for you! 🛡️
