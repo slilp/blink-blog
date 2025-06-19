@@ -1,0 +1,74 @@
+When you working with a database, I believe that every one want the database to query fastest as possible. Indexing is one of the most common thing you think about.
+
+Indexes are special data structures that help databases find rows faster, just like an index in a book helps you find topics quickly. Without indexes, the database must scan every row to find matches, which is slow for large tables. Indexes dramatically speed up SELECT queries, especially on large datasets.
+
+> Indexing is good, but the real question is: which indexes should you choose?
+
+## How Do We Choose Which Index to Create?
+
+If you want to query all three fields together, you should create a **composite index** on `(first_name, last_name, age)`. This is straightforward.
+
+_But what if you want to query different combinations? What indexes should you create, and does the composite index still work?_
+
+Let's say you have these queries:
+
+```sql
+SELECT * FROM users WHERE first_name = 'John' AND last_name = 'Doe' AND age = 30;
+SELECT * FROM users WHERE first_name = 'John';
+SELECT * FROM users WHERE first_name = 'John' AND last_name = 'Doe';
+SELECT * FROM users WHERE last_name = 'Doe';
+SELECT * FROM users WHERE age = 30;
+```
+
+### Breaking Down Your Queries and Indexing Strategies
+
+```sql
+SELECT * FROM users WHERE first_name = 'John' AND last_name = 'Doe' AND age = 30
+```
+
+- The query  
+  is efficiently covered by a composite index on `(first_name, last_name, age)`. The database can use this single index to quickly narrow down the results.
+
+```sql
+SELECT * FROM users WHERE first_name = 'John'
+SELECT * FROM users WHERE first_name = 'John' AND last_name = 'Doe'
+```
+
+- The queries are also covered by the composite index. If you have an index on `(first_name, last_name, age)`, these queries can still use the `first_name` (and `last_name`) part of the index efficiently.
+
+```sql
+SELECT * FROM users WHERE last_name = 'Doe'
+SELECT * FROM users WHERE age = 30
+```
+
+- The queries are **not** fully covered by the composite index.
+
+**Why? The composite index is ordered by `first_name` first is covered by the composite key, but queries that filter only by `last_name` or `age` cannot use the index efficiently.**
+
+The key to understanding composite indexes is the **leftmost prefix rule**.  
+Imagine you have a composite index on `(first_name, last_name, age)`. This means the database stores the data in a sorted order: first by `first_name`, then by `last_name` within each `first_name`, and finally by `age` within each `(first_name, last_name)` combination.
+
+If you only search for `last_name = 'Doe'`, the database cannot jump directly to all "Doe" entries, because the index is sorted by `first_name` first. It would have to scan through the entire index (or a large portion of it), checking the `last_name` for each entry.
+
+Think of it like trying to find everyone named "John" in a phone book sorted by last name, then first name. If you only know their first name, you'd have to look at almost every entry, because "John" could appear under any last name.
+
+Therefore, the `(first_name, last_name, age)` index is not useful for a query that only filters on `last_name` or `age`. It doesn't follow the leftmost prefix rule.
+
+---
+
+## About the Leftmost Prefix Rule
+
+The leftmost prefix rule states that a composite index can be effectively used for queries that include the first column(s) of the index, in order, from left to right.
+
+For an index on `(A, B, C)`:
+
+- `WHERE A = ...` (Yes, can use the index)
+- `WHERE A = ... AND B = ...` (Yes, can use the index)
+- `WHERE A = ... AND B = ... AND C = ...` (Yes, can use the index)
+- `WHERE B = ...` (No, cannot efficiently use the index)
+- `WHERE B = ... AND C = ...` (No, cannot efficiently use the index)
+- `WHERE C = ...` (No, cannot efficiently use the index)
+
+---
+
+> A well-chosen index is like a shortcut through a maze—get it right, and you'll always find your way fast.

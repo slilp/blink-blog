@@ -62,7 +62,15 @@ const otherContents: MarkdownContent[] = [
 
 const algorythmContents: MarkdownContent[] = [];
 
-const databaseContents: MarkdownContent[] = [];
+const databaseContents: MarkdownContent[] = [
+  {
+    id: "database-indexing",
+    title: "Database indexing",
+    desc: "A beginner-friendly guide to database indexing.",
+    publishedAt: "2025-06-17",
+    tag: MarkdownTag.DATABASE,
+  },
+];
 
 const securityContents: MarkdownContent[] = [
   {
