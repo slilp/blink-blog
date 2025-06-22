@@ -40,6 +40,13 @@ const typescriptContents: MarkdownContent[] = [
 
 const goContents: MarkdownContent[] = [
   {
+    id: "go-rabbit-mq",
+    title: "RabbitMQ in Go",
+    desc: "A hands-on guide to using RabbitMQ with Go for message-based communication.",
+    publishedAt: "2025-06-21",
+    tag: MarkdownTag.GO,
+  },
+  {
     id: "goroutines-and-channels",
     title: "Are you having a hard time understanding Goroutines and Channels?",
     desc: "Goroutines and Channels are advanced concepts in Go. This article will help you understand them better (or not).",
@@ -66,7 +73,7 @@ const databaseContents: MarkdownContent[] = [
   {
     id: "database-indexing",
     title: "Database indexing",
-    desc: "A beginner-friendly guide to database indexing.",
+    desc: "Make your queries faster with indexing.",
     publishedAt: "2025-06-17",
     tag: MarkdownTag.DATABASE,
   },
