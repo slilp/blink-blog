@@ -15,7 +15,7 @@ interface JourneyCardProps {
 function JourneyCard({ title, path, desc, image1, image2 }: JourneyCardProps) {
   const router = useRouter();
 
-  const height = image2 ? 30 : 70;
+  const size = image2 ? 30 : 70;
 
   return (
     <div
@@ -28,11 +28,11 @@ function JourneyCard({ title, path, desc, image1, image2 }: JourneyCardProps) {
             className="object-contain"
             src={image1}
             alt="logo"
-            height={height}
-            width={height}
+            height={size}
+            width={size}
           />
           {!!image2 && (
-            <Image src={image2} alt="logo" height={height} width={height} />
+            <Image src={image2} alt="logo" height={size} width={size} />
           )}
         </div>
         <div className="text-center pt-3">

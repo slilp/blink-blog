@@ -30,6 +30,13 @@ export const markdownTags: Record<MarkdownTag, string> = {
 
 const typescriptContents: MarkdownContent[] = [
   {
+    id: "image-optimization",
+    title: "Image optimization in web",
+    desc: "Techniques for optimizing images on the web to improve performance, user experience, and SEO.",
+    publishedAt: "2025-06-23",
+    tag: MarkdownTag.TYPESCRIPT,
+  },
+  {
     id: "swiss-knife-typescript",
     title: "Swiss knife typescript",
     desc: "A comprehensive guide to essential TypeScript utilities you should know.",

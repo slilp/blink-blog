@@ -1,0 +1,103 @@
+Optimizing images is crucial for web performance, user experience, and SEO.
+
+## If you use Next.js: Using the `<Image />` Component
+
+Next.js provides a built-in `<Image />` component that offers several benefits over the standard HTML `<img>` tag:
+
+**1. Automatic Optimization:** Images are automatically resized, optimized, and served in modern formats (like WebP) when possible.
+
+<img
+  src="/blog/image-optimization_1.png"
+  alt="image-optimization_1"
+  style={{ maxWidth: "100%" }}
+/>
+
+<img
+  src="/blog/image-optimization_2.png"
+  alt="image-optimization_2"
+  style={{ maxWidth: "100%" }}
+/>
+
+<img
+  src="/blog/image-optimization_3.png"
+  alt="image-optimization_3"
+  style={{ maxWidth: "100%" }}
+/>
+
+In this example, I compare an image rendered with the `<Image />` component to one rendered with a standard `<img />` tag. You can see that the file type and size are different, and the image is compressed.
+
+**2. Responsive Images:** The `<Image />` component automatically generates multiple sizes of the image and serves the appropriate one based on the device's screen size.
+
+```js
+<div className="relative w-full">
+  <Image src={image1} alt="logo" fill />
+</div>
+```
+
+<img
+  src="/blog/image-optimization_4.png"
+  alt="image-optimization_4"
+  style={{ maxWidth: "100%" }}
+/>
+
+**3. Lazy Loading:** Images are loaded only when they enter the viewport, improving initial page load speed.
+
+**4. Image Placeholder:** Allow to use a blurred placeholder while your image loading.
+
+This technique is especially useful for large images or slow network conditions, making your site feel faster and more polished.
+
+```js
+<Image
+  src={"https://remote-image.com/image.jpg"}
+  alt="remote-image"
+  height={size}
+  width={size}
+  placeholder="blur"
+  blurDataURL="/loading.jpg"
+/>
+```
+
+---
+
+## If you use original React.js:
+
+When using React.js without Next.js, you need to handle image optimization manually. Here are some tips:
+
+**1. Choose the right file type:**
+
+- Use **WebP** for most images (photos, graphics) for best compression and quality.
+- Use **JPEG** for photos if WebP is not supported.
+- Use **PNG** for images needing transparency or lossless quality.
+- Use **SVG** for icons, logos, and vector graphics.
+
+Example tool for converting images to WebP: [Squoosh](https://squoosh.app/).
+
+Example tool for compressing images: [TinyPNG](https://tinypng.com/), [CompressPNG](https://compresspng.com/).
+
+**2. Serve responsive images:**  
+ Use the `srcSet` and `sizes` attributes to provide different image resolutions for different devices.
+
+```jsx
+<img
+  src="image.webp"
+  srcSet="image.webp 1x, image@2x.webp 2x"
+  alt="description"
+  width={400}
+  height={400}
+/>
+```
+
+**3. Use lazy loading:**  
+ Add `loading="lazy"` to defer loading images until they are in the viewport.
+
+```jsx
+<img
+  src="image.webp"
+  alt="description"
+  loading="lazy"
+  width={400}
+  height={400}
+/>
+```
+
+> "A byte saved is a byte earned—your users (and their data plans) will thank you!"
