@@ -30,6 +30,13 @@ export const markdownTags: Record<MarkdownTag, string> = {
 
 const typescriptContents: MarkdownContent[] = [
   {
+    id: "next-auth",
+    title: "NextAuth.js",
+    desc: "Authentication for Next.js",
+    publishedAt: "2025-06-24",
+    tag: MarkdownTag.TYPESCRIPT,
+  },
+  {
     id: "image-optimization",
     title: "Image optimization in web",
     desc: "Techniques for optimizing images on the web to improve performance, user experience, and SEO.",

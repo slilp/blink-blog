@@ -1,0 +1,262 @@
+A common mistake in web development is storing access tokens or refresh tokens directly in the browser—whether in localStorage, sessionStorage, or even cookies accessible to JavaScript. Many developers do this for convenience or because it's the default in some tutorials and libraries. However, this practice comes with serious security risks:
+
+- **XSS Vulnerability:** If your site ever has a cross-site scripting (XSS) vulnerability, an attacker can easily steal tokens from the browser and impersonate users.
+- **Token Theft:** Exposed tokens can be copied and used elsewhere, leading to session hijacking or unauthorized access to APIs.
+- **Refresh Token Danger:** Refresh tokens are especially sensitive, as they can be used to obtain new access tokens and extend a session indefinitely if compromised.
+
+It's easy to overlook these risks, especially when building quickly or following examples that don't prioritize security. But in production apps, keeping tokens server-side is essential for protecting your users and your backend.
+
+The rest of this post shows how to keep tokens secure by never exposing them to the client, using NextAuth and a secure proxy pattern.
+
+When building modern web apps, securely handling authentication tokens is critical. Storing access tokens or refresh tokens on the client (browser) can expose your app to XSS attacks. Instead, you can use NextAuth to manage tokens on the server, and a proxy route to securely forward API requests with the right credentials.
+
+I'll show you how I do this in my own project, using three key steps:
+
+## 1. Core NextAuth Configuration
+
+I assume that many of you have your own system that can geenrate access and refresh token.
+
+Here's how I configure NextAuth to use credentials, store tokens in the session, and refresh them securely.
+
+```ts
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { decode } from "jsonwebtoken";
+import authApi from "@/services/auth";
+
+async function refreshAccessToken(session: any) {
+  try {
+    if (!session?.refreshToken) return { ...session };
+
+    const refreshTokenResponse = await authApi.refreshToken(
+      session?.refreshToken
+    );
+    const { exp } = decode(refreshTokenResponse.accessToken) as {
+      exp: number;
+    };
+
+    return {
+      ...session,
+      accessToken: refreshTokenResponse.accessToken,
+      accessTokenExpires: exp,
+      refreshToken: refreshTokenResponse.refreshToken,
+    };
+  } catch (error: any) {
+    console.log("RefreshAccessTokenError", error);
+    return {
+      ...session,
+      error: "RefreshAccessTokenError",
+    };
+  }
+}
+
+const authOptions: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials, req) {
+        try {
+          const authResponse = await authApi.login({
+            email: credentials?.email || "",
+            password: credentials?.password || "",
+          });
+
+          if (!authResponse) return null;
+
+          const { exp } = decode(authResponse.accessToken || "") as {
+            exp: number;
+          };
+
+          const user = {
+            id: authResponse.userId,
+            email: authResponse.email,
+            accessToken: authResponse.accessToken,
+            refreshToken: authResponse.refreshToken,
+            accessTokenExpires: exp,
+            displayName: authResponse.displayName,
+          };
+          return user;
+        } catch (error) {
+          return null;
+        }
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }: any) {
+      const now = Math.floor(Date.now() / 1000);
+      const isExpired = now > token?.accessTokenExpires;
+      if (!isExpired) {
+        return { ...token, ...user };
+      }
+      return refreshAccessToken({ ...token, ...user });
+    },
+    async session({ session, token }: { session: any; token: any }) {
+      return {
+        ...session,
+        user: {
+          id: token.id,
+          email: token.email,
+          displayName: token.displayName,
+        },
+        error: token?.error,
+      };
+    },
+  },
+};
+export default authOptions;
+```
+
+**Key points:**
+
+- Tokens are only stored in the session (server-side).
+- The `jwt` callback checks if the access token is expired and refreshes it if needed.
+- The refresh logic is handled on the server, never exposing the refresh token to the client.
+
+---
+
+## 2. Creating a Secure Axios Instance
+
+This utility creates an Axios instance with the access token from the current session, all on the server side:
+
+```ts
+import axios, { AxiosInstance } from "axios";
+import { getToken } from "next-auth/jwt";
+import { NextRequest } from "next/server";
+
+const apiInstanceSecure = async (
+  req: NextRequest,
+  contentType = "application/json"
+): Promise<AxiosInstance> => {
+  const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  return axios.create({
+    baseURL: process.env.NEXT_PUBLIC_BASE_SERVICE_URL,
+    headers: {
+      "content-type": contentType,
+      Authorization: `Bearer ${session?.accessToken}`,
+    },
+  });
+};
+
+export default apiInstanceSecure;
+```
+
+**Key points:**
+
+- The access token is never exposed to the client.
+- The token is fetched from the session using `getToken` on the server.
+
+---
+
+## 3. Secure API Proxy Route
+
+This route acts as a secure proxy for all API requests, automatically attaching the access token from the session:
+
+```ts
+import apiInstanceSecure from "@/services/apiInstanceSecure";
+import { NextRequest, NextResponse } from "next/server";
+
+const getPathAndQuery = (req: NextRequest) => {
+  const url = new URL(req.url);
+  const path = url.pathname.replace("/api", "");
+  const query = Object.fromEntries(url.searchParams.entries());
+  return { path, query };
+};
+
+export async function GET(req: NextRequest) {
+  const { path, query } = getPathAndQuery(req);
+  const apiInstance = await apiInstanceSecure(req);
+
+  try {
+    const response = await apiInstance.get(path, { params: query });
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error: any) {
+    return handleError(error);
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const { path } = getPathAndQuery(req);
+  const contentType = req.headers.get("Content-Type");
+  let body: any;
+  if ((contentType || "application/json").startsWith("multipart/form-data")) {
+    body = await req.formData();
+  } else if (contentType === "application/json") {
+    body = await req.json();
+  }
+
+  const apiInstance = await apiInstanceSecure(
+    req,
+    contentType || "application/json"
+  );
+
+  try {
+    const response = await apiInstance.post(path, body);
+    return NextResponse.json(response.data, { status: response.status });
+  } catch (error: any) {
+    return handleError(error);
+  }
+}
+
+// ... PUT, PATCH, DELETE ...
+
+function handleError(error: any) {
+  if (error.response) {
+    // Axios error
+    const status = error.response.status || 500;
+    const data = error.response.data || { error: "Internal Server Error" };
+    return NextResponse.json(data, { status });
+  } else {
+    // Non-Axios error
+    return NextResponse.json({ error: "Unexpected Error" }, { status: 500 });
+  }
+}
+```
+
+**Key points:**
+
+- All API requests from the client go through this route.
+- The route attaches the access token from the session, so the client never sees it.
+- This pattern also allows you to handle token refresh and error handling in one place.
+
+## Why Use This Pattern?
+
+- **Security:** Tokens are never exposed to the browser or JavaScript on the client.
+- **Centralized Logic:** All authentication and refresh logic is handled in one place.
+- **Flexibility:** You can easily add logging, error handling, or other middleware in your proxy route.
+
+---
+
+## Bonus: Is My Session Token Safe?
+
+After following the three steps above, you might notice something that seems confusing: even though you never expose access or refresh tokens to the client, you can still see the secure proxy route in your browser's network tab—and you can even copy the cURL command and use it in tools like Postman.
+
+**Why does this work?**
+
+When you copy a cURL command from your browser, it includes your session token (usually as a cookie). This session token is how the server knows who you are. As long as you have a valid session token, you can make requests to the proxy route—just like your browser does. This is normal and expected in any web app that uses sessions or cookies for authentication.
+
+**Is this a security problem?**
+
+No, as long as you protect your session token:
+
+- The session token is supposed to be on the client. It's like a key that proves your identity to the server.
+- If someone else gets your session token, they can act as you—so never share it, just like you wouldn't share your house key.
+- The real danger is if your site is vulnerable to XSS (cross-site scripting) or if you don't use secure cookie settings.
+
+**How do you keep session tokens safe?**
+
+- Use `httpOnly` cookies so JavaScript can't read them (protects against XSS).
+- Use `secure` cookies so they're only sent over HTTPS.
+- Use `sameSite` to help prevent CSRF attacks.
+- Never expose access or refresh tokens to the client—only the session token.
+
+**In short:**
+
+- It's normal for the session token to be on the client.
+- Use secure cookie settings and protect against XSS ( Next.js and NextAuth.js use secure cookie settings and help protect against XSS by default. For example, cookies are set as `httpOnly`, `secure` (in production), and `sameSite` by default, and React escapes content to prevent XSS.)
+
+> "A secure web token is like a house key—protect it well, and only the right people get in. Security is not just about hiding secrets, but about controlling access."
