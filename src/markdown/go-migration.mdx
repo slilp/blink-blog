@@ -1,0 +1,115 @@
+Creating database in api service is one of important task for any application and It isn't just a one time task. You will need versioning to create, update, and sometimes rollback your database schema as your application evolves. This is where migration comes in handy.
+
+In this guide, we will explore how to use `golang-migrate` for managing database migrations in Go applications.
+
+## Installation (via Homebrew)
+
+```sh
+brew install golang-migrate
+```
+
+## Creating Migration Files
+
+Migration files are named with a timestamp, description, and direction (`up` or `down`):
+
+```sh
+migrate create -ext sql -dir db/migrations -seq create_user_table
+```
+
+<img
+  src="/blog/go-migration_1.png"
+  alt="go-migration_1"
+  style={{ maxWidth: "100%" }}
+/>
+
+**Sample `up` / `down` migration:**
+
+The migration file is just a normal SQL file
+
+```sql
+CREATE TABLE user (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL
+);
+```
+
+```sql
+DROP TABLE user;
+```
+
+## Go Code to Run Migrations
+
+```go
+import (
+  "github.com/golang-migrate/migrate/v4"
+  _ "github.com/golang-migrate/migrate/v4/database/postgres"
+  _ "github.com/golang-migrate/migrate/v4/source/file"
+  "log"
+)
+
+func main() {
+  m, err := migrate.New(
+    "ile://./db/migrations",
+    "postgres://user:password@localhost:5432/dbname?sslmode=disable",
+  )
+  if err != nil {
+    log.Fatal(err)
+  }
+  if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+    log.Fatal(err)
+  }
+}
+```
+
+<img
+  src="/blog/go-migration_2.png"
+  alt="go-migration_2"
+  style={{ maxWidth: "100%" }}
+/>
+
+After you run your code, the migration will be applied to your database. You can check the `schema_migrations` table in your database to see the applied migrations.
+
+<img
+  src="/blog/go-migration_3.png"
+  alt="go-migration_3"
+  style={{ maxWidth: "100%" }}
+/>
+
+You can see that the version is 8, which corresponds to the number of the migration file you created.
+
+---
+
+## Intergrate with your ORM
+
+When you have the real database schema in place, you can use an ORM like GORM to map your Go structs to the database tables.
+
+```go
+import (
+  "gorm.io/gorm"
+)
+
+type User struct {
+  ID    uint   `gorm:"primaryKey"`
+  Name  string
+  Email string `gorm:"unique"`
+}
+
+// If you use plural table names, you do not need to define this function
+func (User) TableName() string {
+	return "user"
+}
+
+// Usage
+var db *gorm.DB // assume initialized
+var user User
+db.First(&user, 1)
+```
+
+## Bonus
+
+Many GORM users like to use GORM's `AutoMigrate` function because it is incredibly convenient for development and rapid prototyping. It automatically creates tables, adds missing columns, foreign keys, constraints, and indexes based on your Go struct models.
+
+However, it is generally not recommended for use in production environments for several critical reasons.
+
+In my opinion, you should use a migration process (any migration tool is fine). It is better than relying on auto migration because you never know when an unintentional change might be pushed to your production environment, altering your database schema without any versioning or rollback support.

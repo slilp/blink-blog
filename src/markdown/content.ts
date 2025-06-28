@@ -54,6 +54,13 @@ const typescriptContents: MarkdownContent[] = [
 
 const goContents: MarkdownContent[] = [
   {
+    id: "go-migration",
+    title: "Go DB migration",
+    desc: "Managing database schema in Go projects.",
+    publishedAt: "2025-06-28",
+    tag: MarkdownTag.GO,
+  },
+  {
     id: "go-rabbit-mq",
     title: "RabbitMQ in Go",
     desc: "A hands-on guide to using RabbitMQ with Go for message-based communication.",
