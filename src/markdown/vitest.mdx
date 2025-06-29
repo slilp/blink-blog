@@ -1,0 +1,257 @@
+## What is Vitest?
+
+Vitest is a fast, modern unit testing framework built for Vite projects (but works with many setups).  
+It provides instant test runs, powerful mocking, and a Jest-like API—making it easy to write and run tests for your React and Next.js applications.
+
+## Setup Vitest in a Next.js Project
+
+First, install the required dependencies:
+
+```sh
+npm install --save-dev vitest @testing-library/react @testing-library/jest-dom jsdom
+```
+
+Add a `vitest.config.ts` file to your project root:
+
+```ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./setupTest.tsx"],
+    globals: true,
+  },
+});
+```
+
+Create a `setupTest.tsx` file for global mocks and setup:
+
+```tsx
+import "@testing-library/jest-dom/vitest";
+// Add any global mocks here
+
+vi.mock("next/font/google", () => ({
+  __esModule: true,
+  Rubik: vi.fn().mockReturnValue({
+    className: "rubil-mock",
+    style: { fontFamily: "Prompt" },
+  }),
+}));
+```
+
+---
+
+## Create a Custom Test Utility with Providers
+
+To simplify rendering components with all necessary providers you use in your project (Redux, Theme, etc.), create a `testUtil.tsx`:
+
+```tsx
+// testUtil.tsx
+import React from "react";
+import { render, RenderResult } from "@testing-library/react";
+import ReactQueryProvider from "@/providers/ReactQueryProvider";
+import { Provider as ReduxProvider } from "react-redux";
+import AppThemeProvider from "@/providers/ThemeProvider";
+import { configureStore } from "@reduxjs/toolkit";
+import { reducers, RootState } from "@/redux/store";
+
+function setupStore(preloadedState?: RootState) {
+  return configureStore({
+    reducer: reducers,
+    preloadedState,
+  });
+}
+
+type CustomRenderOptions = {
+  preloadedState?: RootState;
+};
+
+const customRender = (
+  ui: React.ReactNode,
+  options?: CustomRenderOptions
+): RenderResult => {
+  const preloadedState = options?.preloadedState;
+  const AllTheProviders = ({ children }: { children: React.ReactNode }) => (
+    <ReactQueryProvider>
+      <ReduxProvider store={setupStore(preloadedState)}>
+        <AppThemeProvider>{children}</AppThemeProvider>
+      </ReduxProvider>
+    </ReactQueryProvider>
+  );
+
+  return render(ui, { wrapper: AllTheProviders });
+};
+
+export * from "@testing-library/react";
+export { customRender as render };
+```
+
+---
+
+## Use Case: Common Testing Scenarios in Daily Work
+
+### Submit Form with Validation
+
+In this example, I will test a `LoginForm` component that includes form validation and submission using NextAuth.js.
+
+<img src="/blog/vitest_1.png" alt="vitest_1" style={{ maxWidth: "100%" }} />
+
+```tsx
+import React from "react";
+import { render, screen, fireEvent, waitFor } from "@/utils/testUtil";
+import LoginFormSection from "../components/LoginFormSection";
+import { signIn } from "next-auth/react";
+
+vi.mock("next-auth/react", () => ({
+  __esModule: true,
+  ...vi.importActual("next-auth/react"),
+  signIn: vi.fn(),
+}));
+
+describe("LoginFormSection", () => {
+  it("renders the login form", () => {
+    render(<LoginFormSection />);
+    expect(screen.getByText("Login")).toBeInTheDocument();
+    expect(screen.getByText("Welcome to Admin Dashboard")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("email-input").querySelector("input")
+    ).toHaveAttribute("type", "text");
+    expect(
+      screen.getByTestId("password-input").querySelector("input")
+    ).toHaveAttribute("type", "password");
+    expect(screen.getByTestId("signin-btn")).toBeInTheDocument();
+  });
+
+  it("allows text input for email and password fields", () => {
+    render(<LoginFormSection />);
+    const emailField = screen.getByTestId("email-input").querySelector("input");
+    const passwordField = screen
+      .getByTestId("password-input")
+      .querySelector("input");
+    fireEvent.change(emailField, { target: { value: "test@example.com" } });
+    fireEvent.change(passwordField, { target: { value: "password123" } });
+    expect(emailField).toHaveValue("test@example.com");
+    expect(passwordField).toHaveValue("password123");
+  });
+
+  it("displays `*required field` when submitting without required fields", async () => {
+    render(<LoginFormSection />);
+    const signInButton = screen.getByTestId("signin-btn");
+    fireEvent.click(signInButton);
+    await waitFor(() =>
+      expect(screen.getAllByText("*required field")).toHaveLength(2)
+    );
+  });
+
+  it("signs in successfully", async () => {
+    render(<LoginFormSection />);
+    (signIn as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true });
+    const emailField = screen.getByTestId("email-input").querySelector("input");
+    const passwordField = screen
+      .getByTestId("password-input")
+      .querySelector("input");
+    const signInButton = screen.getByTestId("signin-btn");
+    fireEvent.change(emailField, { target: { value: "test@example.com" } });
+    fireEvent.change(passwordField, { target: { value: "password123" } });
+    fireEvent.click(signInButton);
+    await waitFor(() =>
+      expect(signIn).toHaveBeenCalledWith("credentials", {
+        email: "test@example.com",
+        password: "password123",
+        redirect: false,
+      })
+    );
+  });
+});
+```
+
+**What you should learn from this :**
+
+- When using a partial import like `{ signIn }` from `"next-auth/react"`, mock the whole module with `vi.importActual("next-auth/react")` and set `__esModule: true` for ES module support.
+- Use `await waitFor(...)` for assertions that depend on async UI updates (like state changes or validation errors).  
+  This makes sure your test waits for the UI to update before checking results.
+
+!!! If you don't use `await waitFor(...)`, you might see errors like:
+
+<img src="/blog/vitest_2.png" alt="vitest_2" style={{ maxWidth: "100%" }} />
+
+You might want to fix this by wrapping code in `act(() => { ... })`, but that's not the right way for user interactions.
+
+`act()` is a low-level utility for React internals and is mainly intended for library authors or very specific cases. Manually wrapping your test code in `act()` can hide real problems and make your tests harder to understand. For most user-driven events and UI updates, `waitFor` is the recommended approach.
+
+Just use `await waitFor(...)`—it's simpler and matches how users see updates in the app.  
+`waitFor` will keep checking your assertion until the UI updates as expected, making your tests more reliable and closer to real user experience.
+
+### Fetching Data when accessing a page
+
+In this example, here is a test for a `CategoryViewPage` component that fetches and displays category data:
+
+<img src="/blog/vitest_3.png" alt="vitest_3" style={{ maxWidth: "100%" }} />
+
+```tsx
+// CategoryViewPage.test.tsx
+import React from "react";
+import { render, screen, waitFor } from "@/utils/testUtil";
+import CategoryViewPage from "../pages/CategoryViewPage";
+import categoryApi from "@/services/category";
+import { vi } from "vitest";
+
+describe("CategoryViewPage", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("should renders data correctly", async () => {
+    const mockData = {
+      data: [
+        {
+          id: 1,
+          name: "Category 1",
+          description: "Description 1",
+          coverImage: "image1.jpg",
+          updatedAt: "2025-06-29T00:00:00Z",
+        },
+        {
+          id: 2,
+          name: "Category 2",
+          description: "Description 2",
+          coverImage: "image2.jpg",
+          updatedAt: "2025-06-29T00:00:00Z",
+        },
+      ],
+      pagination: {
+        totalRecords: 2,
+        page: 1,
+        limit: 20,
+      },
+    };
+    vi.spyOn(categoryApi, "listCategory").mockResolvedValue(mockData);
+
+    render(<CategoryViewPage />);
+
+    expect(categoryApi.listCategory).toHaveBeenCalledWith(
+      1,
+      10,
+      "updatedAt:desc"
+    );
+
+    await waitFor(() => {
+      for (const item of mockData.data) {
+        expect(screen.getByText(item.name)).toBeInTheDocument();
+      }
+    });
+
+    //Or using findByText for each item
+    // for (const item of mockData.data) {
+    //   expect(await screen.findByText(item.name)).toBeInTheDocument();
+    // }
+  });
+});
+```
+
+**What you should learn from this :**
+
+- vi.restoreAllMocks() is used to restore the original implementation of all mocked functions after each test. This ensures that mocks do not leak between tests, which can lead to unexpected behavior.
+- You can use findBy... instead of waitFor to wait for async updates in the UI.  
+  `findBy...` is useful for single elements, while `waitFor` can be used for multiple assertions or more complex conditions.

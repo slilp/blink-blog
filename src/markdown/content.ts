@@ -30,6 +30,13 @@ export const markdownTags: Record<MarkdownTag, string> = {
 
 const typescriptContents: MarkdownContent[] = [
   {
+    id: "vitest",
+    title: "Next.js unit testing with Vitest",
+    desc: "A guide to unit testing Next.js applications using Vitest.",
+    publishedAt: "2025-06-24",
+    tag: MarkdownTag.TYPESCRIPT,
+  },
+  {
     id: "next-auth",
     title: "NextAuth.js",
     desc: "Authentication for Next.js",
