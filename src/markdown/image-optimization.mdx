@@ -6,43 +6,17 @@ Next.js provides a built-in `<Image />` component that offers several benefits o
 
 **1. Automatic Optimization:** Images are automatically resized, optimized, and served in modern formats (like WebP) when possible.
 
-<img
-  src="/blog/image-optimization_1.png"
-  alt="image-optimization_1"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/image-optimization_1.png" alt="image-optimization_1" />
 
-<img
-  src="/blog/image-optimization_2.png"
-  alt="image-optimization_2"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/image-optimization_2.png" alt="image-optimization_2" />
 
-<img
-  src="/blog/image-optimization_3.png"
-  alt="image-optimization_3"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/image-optimization_3.png" alt="image-optimization_3" />
 
 In this example, I compare an image rendered with the `<Image />` component to one rendered with a standard `<img />` tag. You can see that the file type and size are different, and the image is compressed.
 
-**2. Responsive Images:** The `<Image />` component automatically generates multiple sizes of the image and serves the appropriate one based on the device's screen size.
+**2. Lazy Loading:** Images are loaded only when they enter the viewport, improving initial page load speed.
 
-```js
-<div className="relative w-full">
-  <Image src={image1} alt="logo" fill />
-</div>
-```
-
-<img
-  src="/blog/image-optimization_4.png"
-  alt="image-optimization_4"
-  style={{ maxWidth: "100%" }}
-/>
-
-**3. Lazy Loading:** Images are loaded only when they enter the viewport, improving initial page load speed.
-
-**4. Image Placeholder:** Allow to use a blurred placeholder while your image loading.
+**3. Image Placeholder:** Allow to use a blurred placeholder while your image loading.
 
 This technique is especially useful for large images or slow network conditions, making your site feel faster and more polished.
 
@@ -61,43 +35,19 @@ This technique is especially useful for large images or slow network conditions,
 
 ## If you use original React.js:
 
-When using React.js without Next.js, you need to handle image optimization manually. Here are some tips:
+**Bonus**
 
-**1. Choose the right file type:**
+| File Type | Use Case               | Pros                       | Cons                  |
+| --------- | ---------------------- | -------------------------- | --------------------- |
+| WebP      | Photos, graphics       | Small size, good quality   | Not in IE/Safari < 14 |
+| JPEG      | Photos                 | Good quality, wide support | Larger than WebP      |
+| PNG       | Graphics, transparency | Lossless, transparency     | Large file size       |
+| SVG       | Icons, logos, graphics | Scalable, tiny size        | Not for photos        |
 
-- Use **WebP** for most images (photos, graphics) for best compression and quality.
-- Use **JPEG** for photos if WebP is not supported.
-- Use **PNG** for images needing transparency or lossless quality.
-- Use **SVG** for icons, logos, and vector graphics.
+---
 
-Example tool for converting images to WebP: [Squoosh](https://squoosh.app/).
+**Conclusion:**
 
-Example tool for compressing images: [TinyPNG](https://tinypng.com/), [CompressPNG](https://compresspng.com/).
-
-**2. Serve responsive images:**  
- Use the `srcSet` and `sizes` attributes to provide different image resolutions for different devices.
-
-```jsx
-<img
-  src="image.webp"
-  srcSet="image.webp 1x, image@2x.webp 2x"
-  alt="description"
-  width={400}
-  height={400}
-/>
-```
-
-**3. Use lazy loading:**  
- Add `loading="lazy"` to defer loading images until they are in the viewport.
-
-```jsx
-<img
-  src="image.webp"
-  alt="description"
-  loading="lazy"
-  width={400}
-  height={400}
-/>
-```
-
-> "A byte saved is a byte earned—your users (and their data plans) will thank you!"
+- Use Next.js `<Image />` for automatic, best-in-class optimization.
+- In React, prefer WebP with JPEG/PNG fallbacks, and always compress images.
+- Use SVG for vector graphics.

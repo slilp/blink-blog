@@ -61,6 +61,13 @@ const typescriptContents: MarkdownContent[] = [
 
 const goContents: MarkdownContent[] = [
   {
+    id: "go-mock",
+    title: "Mocking in Go with GoMock",
+    desc: "GoMock is a mocking framework for the Go programming language.",
+    publishedAt: "2025-06-30",
+    tag: MarkdownTag.GO,
+  },
+  {
     id: "go-migration",
     title: "Go DB migration",
     desc: "Managing database schema in Go projects.",

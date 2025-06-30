@@ -50,11 +50,7 @@ func main() {
 
 In this code example, the normal case of delete by email API is:
 
-<img
-  src="/blog/sql-injection_1.png"
-  alt="sql-injection_1"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/sql-injection_1.png" alt="sql-injection_1" />
 
 You can see that only 1 record effect to be deleted as it should be.
 
@@ -72,17 +68,9 @@ DELETE FROM "user" WHERE email = 'test@example.com' OR '1'='1'
 
 Let's see what happen !!!!
 
-<img
-  src="/blog/sql-injection_2.png"
-  alt="sql-injection_2"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/sql-injection_2.png" alt="sql-injection_2" />
 
-<img
-  src="/blog/sql-injection_3.png"
-  alt="sql-injection_3"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/sql-injection_3.png" alt="sql-injection_3" />
 
 This malicious input would delete ALL users in the database because the OR condition '1'='1' is always true!
 
@@ -129,11 +117,7 @@ DELETE FROM "user" WHERE email = 'test@example.com'' OR ''1''=''1'
 
 Let's see the result
 
-<img
-  src="/blog/sql-injection_4.png"
-  alt="sql-injection_4"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/sql-injection_4.png" alt="sql-injection_4" />
 
 It look like what we want ✅
 

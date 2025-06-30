@@ -48,7 +48,6 @@ function ExperienceCard({
           </p>
         </div>
       </div>
-
       <div className="w-full">
         <ul className="list-disc list-inside text-sm">
           {desc.map((item, index) => (

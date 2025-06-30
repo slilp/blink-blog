@@ -95,7 +95,7 @@ export { customRender as render };
 
 In this example, I will test a `LoginForm` component that includes form validation and submission using NextAuth.js.
 
-<img src="/blog/vitest_1.png" alt="vitest_1" style={{ maxWidth: "100%" }} />
+<MdxImage src="/blog/vitest_1.png" alt="vitest_1" />
 
 ```tsx
 import React from "react";
@@ -174,7 +174,7 @@ describe("LoginFormSection", () => {
 
 !!! If you don't use `await waitFor(...)`, you might see errors like:
 
-<img src="/blog/vitest_2.png" alt="vitest_2" style={{ maxWidth: "100%" }} />
+<MdxImage src="/blog/vitest_2.png" alt="vitest_2" />
 
 You might want to fix this by wrapping code in `act(() => { ... })`, but that's not the right way for user interactions.
 
@@ -187,7 +187,7 @@ Just use `await waitFor(...)`—it's simpler and matches how users see updates i
 
 In this example, here is a test for a `CategoryViewPage` component that fetches and displays category data:
 
-<img src="/blog/vitest_3.png" alt="vitest_3" style={{ maxWidth: "100%" }} />
+<MdxImage src="/blog/vitest_3.png" alt="vitest_3" />
 
 ```tsx
 // CategoryViewPage.test.tsx

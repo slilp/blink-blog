@@ -1,0 +1,150 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+When writing unit tests in Go, you want to test your code in isolation—without relying on real databases, APIs, or external services. Mocking allows you to replace real dependencies with fake ones that you control, making your tests faster, more reliable, and focused only on the logic you want to verify.
+
+[GoMock](https://github.com/uber-go/mock) is a popular mocking framework for Go. It lets you generate mock implementations of interfaces, so you can easily substitute real dependencies with mocks in your tests.
+
+You can use the `mockgen` tool to generate mocks for your interfaces. GoMock is specifically designed to mock interfaces. It operates by generating a concrete struct that implements the methods defined in your Go interface.
+
+The `//go:generate` directive in your Go files helps automate this process.
+
+For example, if you have a `user_service.go` that is a business or usecase layer that call some repository to get data from db.:
+
+```go
+//user_service.go
+package services
+
+import (
+	"fmt"
+
+	"github.com/slilp/kangsang-go-api/internal/repository"
+	"github.com/slilp/kangsang-go-api/internal/repository/entity"
+	"github.com/slilp/kangsang-go-api/internal/servers/api_gen"
+	"github.com/slilp/kangsang-go-api/internal/utils"
+    "golang.org/x/crypto/bcrypt"
+)
+
+type IAuthenticationService interface {
+	Register(req api_gen.RegisterRequest) error
+}
+
+type authenticationService struct {
+	userRepo      repository.IUserRepository
+}
+
+func NewAuthenticationService(userRepo repository.IUserRepository) IAuthenticationService {
+	return &authenticationService{userRepo: userRepo}
+}
+
+func (r *authenticationService) Register(req api_gen.RegisterRequest) error {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	err = r.userRepo.CreateNew(entity.User{
+		Email:       req.Email,
+		Password:    string(hashedPassword),
+		DisplayName: req.DisplayName,
+	})
+
+	return err
+}
+```
+
+You can see that Register method call to userRepo.CreateNew, which is a repository layer that connect to databse. The question is, how do you test this without actually hitting the database ?
+
+See the repository file that have the interface definition:
+
+```go
+//user_repository.go
+package repository
+
+import (
+	"github.com/slilp/kangsang-go-api/internal/repository/entity"
+	"gorm.io/gorm"
+)
+
+//go:generate mockgen -source=./user.go -destination=./mocks/mock_user_repository.go -package=mock_repository
+type IUserRepository interface {
+	CreateNew(req entity.User) error
+}
+
+type userRepository struct {
+	db *gorm.DB
+}
+
+func NewUserRepository(db *gorm.DB) IUserRepository {
+	return &userRepository{db: db}
+}
+
+func (r *userRepository) CreateNew(req entity.User) error {
+	if err := r.db.Create(&req).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+```
+
+For the `IUserRepository` interface, you can add a `//go:generate` directive above it:
+
+This tells mockgen to generate a mock for your interface when you run the `go generate` command.
+
+To generate mocks, run:
+
+```sh
+go generate ./...
+```
+
+This will look for all `//go:generate` directives in your codebase and execute them.
+
+After run this command you will get the mock file destination to your specific.
+
+<MdxImage src="/blog/go-mock_1.png" alt="go-mock-1" />
+
+To use the mock in your tests, you can do something like this:
+
+```go
+//user_service_test.go
+package services_test
+
+import (
+    "testing"
+
+    "github.com/golang/mock/gomock"
+    "github.com/slilp/kangsang-go-api/internal/repository/mocks"
+    "github.com/slilp/kangsang-go-api/internal/servers/api_gen"
+    "github.com/slilp/kangsang-go-api/internal/services"
+)
+
+func TestRegister(t *testing.T) {
+    ctrl := gomock.NewController(t)
+    defer ctrl.Finish()
+
+    mockUserRepo := mocks.NewMockIUserRepository(ctrl)
+    authService := services.NewAuthenticationService(mockUserRepo)
+
+    req := api_gen.RegisterRequest{
+        Email:       "test@example.com",
+        Password:    "password123",
+        DisplayName: "Test User",
+    }
+
+    // Set up the mock's expected call and return value
+    mockUserRepo.EXPECT().
+        CreateNew(gomock.Any()).
+        Return(nil)
+
+    err := authService.Register(req)
+    if err != nil {
+        t.Errorf("expected no error, got %v", err)
+    }
+}
+```
+
+This test sets up a mock for `IUserRepository`, injects it into your service, and verifies that the `Register` method works as expected without touching a real database.
+
+---
+
+> "Mocks let you to test your code's core logic in isolation, without the complexities of network or database interactions."

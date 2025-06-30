@@ -8,29 +8,17 @@ When working with APIs that require authentication, such as bearer authenticatio
 
 1. POST to the login API to get the access token:
 
-<img
-  src="/blog/postman-scripts_1.png"
-  alt="Postman Auto Set Token Example"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/postman-scripts_1.png" alt="postman-scripts_1" />
 
 2. Copy & Paste to set the access token to an environment variable
 
-<img
-  src="/blog/postman-scripts_2.png"
-  alt="Postman Auto Set Token Example"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/postman-scripts_2.png" alt="postman-scripts_2" />
 
 > You might have noticed that copying and pasting the token every time it expires is quite time-consuming. This is where Post-response scripts come in to save the day!
 
 This script will help you:
 
-<img
-  src="/blog/postman-scripts_3.png"
-  alt="Postman Auto Set Token Example"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/postman-scripts_3.png" alt="postman-scripts_3" />
 
 ```javascript
 // Parse the response body as JSON
@@ -60,11 +48,7 @@ pm.test("Access Token is present", function () {
 
 After you run this API call again, it will automatically extract the accessToken from the response and set it in your environment with just one click!
 
-<img
-  src="/blog/postman-scripts_4.png"
-  alt="Postman Auto Set Token Example"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/postman-scripts_4.png" alt="postman-scripts_4" />
 
 ## Pre-request
 
@@ -120,11 +104,7 @@ if (requestBody && requestBody.coverImage) {
 
 This script will block the request if an invalid format is detected:
 
-<img
-  src="/blog/postman-scripts_5.png"
-  alt="Postman Auto Set Token Example"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/postman-scripts_5.png" alt="postman-scripts_5" />
 
 ## Conclusion
 

@@ -1,3 +1,5 @@
+import MdxImage from "../component/mdx/MdxImage";
+
 RabbitMQ is an essential tool in the microservices world, enabling scalable, reliable, and decoupled communication between services. In this guide, we'll walk through practical examples of using RabbitMQ with Go, including installation, exchange types, queues, and handling failures with dead-letter queues.
 
 ## Installing RabbitMQ with Docker Compose
@@ -196,31 +198,15 @@ func consumeMessages(ch *amqp.Channel, queueName string, consumerName string) {
 }
 ```
 
-<img
-  src="/blog/go-rabbit-mq_1.png"
-  alt="go-rabbit-mq_1"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_1.png" alt="go-rabbit-mq_1" />
 
-<img
-  src="/blog/go-rabbit-mq_2.png"
-  alt="go-rabbit-mq_2"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_2.png" alt="go-rabbit-mq_2" />
 
-<img
-  src="/blog/go-rabbit-mq_3.png"
-  alt="go-rabbit-mq_3"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_3.png" alt="go-rabbit-mq_3" />
 
 You can see that our two queues are bound to the same exchange.
 
-<img
-  src="/blog/go-rabbit-mq_4.png"
-  alt="go-rabbit-mq_4"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_4.png" alt="go-rabbit-mq_4" />
 
 So, when you send a message to an exchange with a specific key, it will be routed to the queue that matches that key.
 
@@ -325,23 +311,11 @@ func main() {
 }
 ```
 
-<img
-  src="/blog/go-rabbit-mq_5.png"
-  alt="go-rabbit-mq_5"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_5.png" alt="go-rabbit-mq_5" />
 
-<img
-  src="/blog/go-rabbit-mq_6.png"
-  alt="go-rabbit-mq_6"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_6.png" alt="go-rabbit-mq_6" />
 
-<img
-  src="/blog/go-rabbit-mq_7.png"
-  alt="go-rabbit-mq_7"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_7.png" alt="go-rabbit-mq_7" />
 
 **Note:** For a Fanout Exchange, the routing key is completely ignored!
 
@@ -457,23 +431,11 @@ func main() {
 }
 ```
 
-<img
-  src="/blog/go-rabbit-mq_8.png"
-  alt="go-rabbit-mq_8"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_8.png" alt="go-rabbit-mq_8" />
 
-<img
-  src="/blog/go-rabbit-mq_9.png"
-  alt="go-rabbit-mq_9"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_9.png" alt="go-rabbit-mq_9" />
 
-<img
-  src="/blog/go-rabbit-mq_10.png"
-  alt="go-rabbit-mq_10"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_10.png" alt="go-rabbit-mq_10" />
 
 - Messages with the routing key `foo.bar` are delivered to both queues (because it matches both patterns).
 - Messages with the routing keys `foo.baz` and `foo.qux` are delivered only to `queue_A` (because they match `foo.*` but not `foo.bar`).
@@ -594,11 +556,7 @@ func consumeAndReject(ch *amqp.Channel, queueName string, consumerName string) {
 }
 ```
 
-<img
-  src="/blog/go-rabbit-mq_11.png"
-  alt="go-rabbit-mq_11"
-  style={{ maxWidth: "100%" }}
-/>
+<MdxImage src="/blog/go-rabbit-mq_11.png" alt="go-rabbit-mq_11" />
 
 ## Conclusion
 
