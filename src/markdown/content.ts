@@ -90,7 +90,15 @@ const goContents: MarkdownContent[] = [
   },
 ];
 
-const softwareEngineerContents: MarkdownContent[] = [];
+const softwareEngineerContents: MarkdownContent[] = [
+  {
+    id: "design-diagram-tools",
+    title: "Design Diagrams tools for software engineers",
+    desc: "A collection of tools that can help software engineers in your daily work.",
+    publishedAt: "2025-07-01",
+    tag: MarkdownTag.SOFTWARE_DESIGN,
+  },
+];
 
 const otherContents: MarkdownContent[] = [
   {
