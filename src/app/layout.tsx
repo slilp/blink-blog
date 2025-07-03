@@ -2,7 +2,7 @@ import "@/style/globals.css";
 import type { Metadata } from "next";
 import { interFont } from "@/style/font";
 
-import Layout from "@/component/layout";
+import Layout from "@/component/Layout";
 
 export const metadata: Metadata = {
   title: "Blink Blog",
