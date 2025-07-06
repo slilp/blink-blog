@@ -1,0 +1,334 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+Form handling is one of the most common tasks in web development, especially in React applications.
+
+Let's start with a traditional form without any libraries to understand the challenges:
+
+## Traditional Form Handling
+
+This is a form that you can see in many examples when you search for form handling in React
+
+```jsx
+import React, { useState } from "react";
+
+const RegisterForm = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!email) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Email is invalid";
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+    } else if (password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
+    }
+
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Confirm password is required";
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    //Your next step, e.g., API call
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md"
+    >
+      <h2 className="text-2xl font-bold mb-6">Register</h2>
+
+      <div className="mb-4">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Email
+        </label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (errors.email) {
+              setErrors((prev) => ({ ...prev, email: "" }));
+            }
+          }}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.email ? "border-red-500" : "border-gray-300"
+          }`}
+        />
+        {errors.email && (
+          <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+        )}
+      </div>
+
+      <div className="mb-4">
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Password
+        </label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (errors.password) {
+              setErrors((prev) => ({ ...prev, password: "" }));
+            }
+          }}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.password ? "border-red-500" : "border-gray-300"
+          }`}
+        />
+        {errors.password && (
+          <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+        )}
+      </div>
+
+      <div className="mb-6">
+        <label
+          htmlFor="confirmPassword"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Confirm Password
+        </label>
+        <input
+          type="password"
+          id="confirmPassword"
+          name="confirmPassword"
+          value={confirmPassword}
+          onChange={(e) => {
+            setConfirmPassword(e.target.value);
+            if (errors.confirmPassword) {
+              setErrors((prev) => ({ ...prev, confirmPassword: "" }));
+            }
+          }}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.confirmPassword ? "border-red-500" : "border-gray-300"
+          }`}
+        />
+        {errors.confirmPassword && (
+          <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
+        )}
+      </div>
+
+      <button
+        type="submit"
+        className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        Register
+      </button>
+    </form>
+  );
+};
+
+export default RegisterForm;
+```
+
+<MdxImage src="/blog/react-hook-form_1.png" alt="react-hook-form_1" />
+
+As you can see, this approach requires a lot of hard-to-maintain code:
+
+- A lot of state management for form data (and it keeps growing...)
+- Manual error state management
+- Custom validation logic
+- Event handlers for input changes
+- Form submission handling
+
+For production code, this approach is not recommended due to its complexity and maintainability issues.
+
+I highly recommend using libraries that simplify form handling. In this article, we will explore how to use **React Hook Form** with **Zod** for form validation in a more efficient and maintainable way.
+
+## What is React Hook Form?
+
+[React Hook Form](https://react-hook-form.com/) is a performant, flexible library that helps you build forms with easy validation. It minimizes re-renders and provides better performance compared to traditional controlled components.
+
+**Key benefits:**
+
+- **Minimal re-renders**: Only re-renders when necessary
+- **Easy validation**: Built-in validation with custom rules
+- **Better performance**: Uncontrolled components approach
+- **Developer experience**: Less boilerplate code
+- **TypeScript support**: Excellent TypeScript integration
+
+## What is Zod?
+
+[Zod](https://zod.dev/) is a TypeScript-first schema validation library. It allows you to define schemas for your data and validate them at runtime while providing excellent TypeScript inference.
+
+**Key benefits:**
+
+- **Type safety**: Automatic TypeScript type inference
+- **Runtime validation**: Validates data at runtime
+- **Composable**: Easy to create complex validation schemas
+- **Error handling**: Detailed error messages
+- **Zero dependencies**: Lightweight and fast
+
+## Register Form with React Hook Form and Zod
+
+Now let's rebuild the same registration form using React Hook Form with Zod validation:
+
+First, install the required packages:
+
+```bash
+npm install react-hook-form @hookform/resolvers zod
+```
+
+Here's the improved implementation:
+
+```jsx
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+// Define validation schema with Zod
+const registerSchema = z
+  .object({
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+// Infer TypeScript type from schema
+type RegisterFormData = z.infer<typeof registerSchema>;
+
+const RegisterFormWithHookForm = () => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm <
+  RegisterFormData >
+  {
+    resolver: zodResolver(registerSchema),
+    mode: "onChange", // Validate on change for better UX
+  };
+
+  const onSubmit = async (data: RegisterFormData) => {
+    //Your next step, e.g., API call
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md"
+    >
+      <h2 className="text-2xl font-bold mb-6">Register with React Hook Form</h2>
+
+      <div className="mb-4">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Email
+        </label>
+        <input
+          type="email"
+          id="email"
+          {...register("email")}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.email ? "border-red-500" : "border-gray-300"
+          }`}
+        />
+        {errors.email && (
+          <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="mb-4">
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Password
+        </label>
+        <input
+          type="password"
+          id="password"
+          {...register("password")}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.password ? "border-red-500" : "border-gray-300"
+          }`}
+        />
+        {errors.password && (
+          <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+        )}
+      </div>
+
+      <div className="mb-6">
+        <label
+          htmlFor="confirmPassword"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
+          Confirm Password
+        </label>
+        <input
+          type="password"
+          id="confirmPassword"
+          {...register("confirmPassword")}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.confirmPassword ? "border-red-500" : "border-gray-300"
+          }`}
+        />
+        {errors.confirmPassword && (
+          <p className="text-red-500 text-sm mt-1">
+            {errors.confirmPassword.message}
+          </p>
+        )}
+      </div>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+      >
+        {isSubmitting ? "Registering..." : "Register"}
+      </button>
+    </form>
+  );
+};
+
+export default RegisterFormWithHookForm;
+```
+
+As you change to using React Hook Form and Zod, I will not explain what improvements they bring because you can significantly notice by yourself that the code is cleaner and easier to maintain.
+
+---
+
+Some developers may think that using libraries is only for complicated forms and wonder why they must waste time learning and setting up the libraries. From my experience, you spend time only once to learn them, but you can apply them to all forms in your projects and in the future.
+
+> For me, using these two things has become a common approach no matter what size your project is. Not only for you, but it makes your code more friendly for others.
