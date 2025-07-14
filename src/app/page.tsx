@@ -1,13 +1,9 @@
 import JourneyCard from "@/component/JourneyCard";
-import { allContents } from "@/markdown/content";
+import RandomTopicCard from "@/component/RandomTopicCard";
 import Link from "next/link";
 import { FaRegUser } from "react-icons/fa";
 
 export default function Home() {
-  const getRandomTopic = () => {
-    return allContents[Math.floor(Math.random() * allContents.length)].id;
-  };
-
   return (
     <div className="mt-5 md:md-10">
       <div className="flex flex-col gap-1 justify-center items-center py-10">
@@ -48,12 +44,7 @@ export default function Home() {
           image1="/golang-icon.png"
           path="/blog/tag/golang"
         />
-        <JourneyCard
-          title="Random topic to explore!"
-          desc=""
-          image1="/chill-guy.png"
-          path={`/blog/${getRandomTopic()}`}
-        />
+        <RandomTopicCard />
       </div>
       <Link href="/blog">
         <button className="flex mx-auto font-semibold px-5 py-2 border-1 border-red-400 rounded-full hover:opacity-90 hover:scale-105 transition duration-200 cursor-pointer mt-5">
