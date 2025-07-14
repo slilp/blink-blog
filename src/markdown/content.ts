@@ -67,6 +67,13 @@ const typescriptContents: MarkdownContent[] = [
 ];
 
 const goContents: MarkdownContent[] = [
+    {
+    id: "go-websocket",
+    title: "POC : WebSocket in Go with Chat app example",
+    desc: "A proof of concept for using WebSocket in Go, demonstrated with a simple chat application.",
+    publishedAt: "2025-07-14",
+    tag: MarkdownTag.GO,
+  },
   {
     id: "go-mock",
     title: "Mocking in Go with GoMock",

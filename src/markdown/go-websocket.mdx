@@ -1,0 +1,297 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+Not every company needs a WebSocket server, my company is one of them. So in my career, I have never used WebSocket server in production. But I have used it in my personal projects and for learning purposes. This article is a proof of concept (POC) for using WebSocket in Go, demonstrated with a simple chat application.
+
+WebSocket is a protocol that enables two-way, real-time communication between a client (such as a browser) and a server. In Go, you can implement WebSocket servers using libraries like [gorilla/websocket](https://github.com/gorilla/websocket) and frameworks like [Gin](https://gin-gonic.com/).
+
+In this article, I'll explain how to build a WebSocket server in Go, manage multiple clients, broadcast messages, and handle chat events.
+
+## Why WebSocket ?
+
+- **Real-time**: Enables instant data exchange between client and server.
+- **Bidirectional**: Both client and server can send messages at any time.
+- **Efficient**: Reduces overhead compared to HTTP polling.
+
+## Example: Go WebSocket Chat Server
+
+Below is a simplified version of a WebSocket chat server using Gin and Gorilla WebSocket. This server supports multiple users, chat rooms, and message broadcasting.
+
+<MdxImage src="/blog/go-websocket_1.png" alt="go-websocket_1" />
+
+### Example Code
+
+```go
+package websocket_servers
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"github.com/slilp/kangsang-go-api/internal/services"
+	"github.com/slilp/kangsang-go-api/internal/utils"
+)
+
+const (
+	MessageTypeChat   = "chat"
+	MessageTypeJoin   = "join"
+	MessageTypeLeave  = "leave"
+	MessageTypeTyping = "typing"
+	MessageTypeError  = "error"
+)
+
+const (
+	writeWait      = 10 * time.Second
+	pongWait       = 60 * time.Second
+	pingPeriod     = (pongWait * 9) / 10
+	maxMessageSize = 512
+)
+
+type ClientMessage struct {
+	Type       string    `json:"type"`
+	Content    string    `json:"content"`
+	SenderID   string    `json:"senderID"`
+	ReceiverID string    `json:"receiverID"`
+	RoomID     string    `json:"roomID"`
+	SentAt     time.Time `json:"sentAt"`
+}
+
+type Connection struct {
+	ws     *webSocketAdapter
+	conn   *websocket.Conn
+	userID string
+	send   chan ClientMessage
+}
+
+type IWebSocketAdapter interface {
+	HandleNewConnection(c *gin.Context) error
+	HandleConnections()
+}
+
+type webSocketAdapter struct {
+	users       map[string]*Connection
+	broadcast   chan ClientMessage
+	register    chan *Connection
+	unregister  chan *Connection
+	upgrader    websocket.Upgrader
+	mu          sync.RWMutex
+	chatService services.IChatService
+}
+
+func NewWebSocket(chatService services.IChatService) IWebSocketAdapter {
+	return &webSocketAdapter{
+		broadcast:   make(chan ClientMessage),
+		register:    make(chan *Connection),
+		unregister:  make(chan *Connection),
+		users:       make(map[string]*Connection),
+		chatService: chatService,
+		upgrader: websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin: func(r *http.Request) bool {
+				return true // TODO: Configure properly for production
+			},
+		},
+	}
+}
+
+// HandleConnections manages registration, unregistration, and broadcasting for all connections.
+// Call this method in your main function to start handling WebSocket connections.
+func (h *webSocketAdapter) HandleConnections() {
+	for {
+		select {
+		case conn := <-h.register:
+			h.mu.Lock()
+			h.users[conn.userID] = conn
+			log.Printf("User %s connected via websocket", conn.userID)
+			h.mu.Unlock()
+
+		case conn := <-h.unregister:
+			h.mu.Lock()
+			if _, ok := h.users[conn.userID]; ok {
+				delete(h.users, conn.userID)
+				close(conn.send)
+				log.Printf("User %s disconnected from websocket", conn.userID)
+			}
+			h.mu.Unlock()
+
+		case message := <-h.broadcast:
+			// Save chat message to DB if it's a chat message
+			if message.Type == MessageTypeChat {
+				if err := h.chatService.HandleSentMessage(message.SenderID, message.RoomID, message.Content); err != nil {
+					log.Printf("Error saving message to DB: %v", err)
+				}
+			}
+			h.broadcastMessage(message)
+		}
+	}
+}
+
+// HandleNewConnection upgrades the HTTP connection to a WebSocket and registers the client.
+// This method should be called in your HTTP server route handler.
+// In this example is GET /secure/ws endpoint.
+func (h *webSocketAdapter) HandleNewConnection(c *gin.Context) error {
+	userId := utils.GetMiddlewareUserId(c)
+
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("WebSocket upgrade error: %v", err)
+		return err
+	}
+
+	connection := &Connection{
+		ws:     h,
+		conn:   conn,
+		userID: userId,
+		send:   make(chan ClientMessage, 256),
+	}
+
+	h.register <- connection
+
+	go connection.writePump()
+	go connection.readPump()
+
+	return nil
+}
+
+// broadcastMessage sends a message to all relevant users (sender and receiver).
+func (h *webSocketAdapter) broadcastMessage(message ClientMessage) {
+	var recipients []*Connection
+	h.mu.RLock()
+	for _, conn := range h.users {
+		if conn.userID == message.SenderID || conn.userID == message.ReceiverID {
+			recipients = append(recipients, conn)
+		}
+	}
+	h.mu.RUnlock()
+
+	for _, conn := range recipients {
+		select {
+		case conn.send <- message:
+			// Message sent successfully
+		default:
+			log.Printf("User %s send buffer full, skipping message", conn.userID)
+		}
+	}
+}
+
+// readPump reads messages from the WebSocket connection and broadcasts them.
+func (c *Connection) readPump() {
+	defer func() {
+		c.ws.unregister <- c
+		c.conn.Close()
+	}()
+
+	c.conn.SetReadLimit(maxMessageSize)
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error {
+		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	for {
+		_, message, err := c.conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNormalClosure) {
+				log.Printf("WebSocket unexpected close error: %v", err)
+			}
+			break
+		}
+
+		var clientMsg ClientMessage
+		if err := json.Unmarshal(message, &clientMsg); err != nil {
+			log.Printf("Error unmarshalling message: %v", err)
+			continue
+		}
+
+		clientMsg.SenderID = c.userID // Set senderID from connection
+		clientMsg.SentAt = time.Now()
+
+		c.ws.broadcast <- clientMsg
+	}
+}
+
+// writePump writes messages to the WebSocket connection and sends periodic pings.
+func (c *Connection) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.conn.Close()
+	}()
+
+	for {
+		select {
+		case message, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			w, err := c.conn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				return
+			}
+
+			jsonMessage, err := json.Marshal(message)
+			if err != nil {
+				log.Printf("Error marshalling message: %v", err)
+				return
+			}
+			if _, err := w.Write(jsonMessage); err != nil {
+				log.Printf("Error writing message: %v", err)
+				return
+			}
+
+			n := len(c.send)
+			for i := 0; i < n; i++ {
+				jsonMessage, err := json.Marshal(<-c.send)
+				if err != nil {
+					log.Printf("Error marshalling queued message: %v", err)
+					continue
+				}
+				if _, err := w.Write(jsonMessage); err != nil {
+					log.Printf("Error writing queued message: %v", err)
+					return
+				}
+			}
+
+			if err := w.Close(); err != nil {
+				return
+			}
+
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
+}
+```
+
+### How It Works
+
+Both user 1 and user 2 connect to the WebSocket server
+
+<MdxImage src="/blog/go-websocket_2.png" alt="go-websocket_2" />
+
+User 1 send a message to user 2
+
+<MdxImage src="/blog/go-websocket_3.png" alt="go-websocket_3" />
+
+User 2 receives the message
+
+<MdxImage src="/blog/go-websocket_4.png" alt="go-websocket_4" />
+
+And you can save or adding other logic to the message.
+
+<MdxImage src="/blog/go-websocket_5.png" alt="go-websocket_5" />
+
+---
+
+This post I have created a simple chat application server with go. The next step I will create a frontend client to connect to this server and test the chat functionality. Please stay tuned for the next post...
