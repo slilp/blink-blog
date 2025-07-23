@@ -67,7 +67,14 @@ const typescriptContents: MarkdownContent[] = [
 ];
 
 const goContents: MarkdownContent[] = [
-    {
+  {
+    id: "go-grpc",
+    title: "gRPC in Go",
+    desc: "A high-performance RPC framework.",
+    publishedAt: "2025-07-14",
+    tag: MarkdownTag.GO,
+  },
+  {
     id: "go-websocket",
     title: "POC : WebSocket in Go with Chat app example",
     desc: "A proof of concept for using WebSocket in Go, demonstrated with a simple chat application.",

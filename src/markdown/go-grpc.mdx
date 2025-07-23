@@ -1,0 +1,426 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+[gRPC](https://grpc.io/) is a high-performance framework for remote procedure calls (RPC). It enables communication between services, typically using HTTP/2 as the transport protocol and Protocol Buffers (protobuf) for efficient serialization of messages.
+
+In short, if you want to enable communication between your API services, gRPC is a great choice compared to using REST APIs. So that make gRPC is popular in modern software development, especially in microservices architectures.
+
+In a microservices architecture, applications are split into small, independent services that communicate over the network. gRPC is commonly used in microservices because it offers:
+
+- **Strongly typed contracts**: Using protobuf, services define clear interfaces.
+- **Efficient communication**: HTTP/2 and binary serialization reduce latency and bandwidth usage.
+- **Language interoperability**: Services written in different languages can communicate easily.
+
+## Steps involved in using gRPC server in Go:
+
+### 1. **Define the service**: Create a `.proto` file
+
+that describes the service and its methods. This is like an API specification that defines the RPC methods, their input and output message types, and any necessary options.
+
+The `.proto` file might be written by yourself...
+
+Or generated from an existing API specification (Swagger/OpenAPI).
+
+Here is an example OpenAPI YAML specification for the Category API:
+
+```yaml
+openapi: "3.0.0"
+info:
+  title: Kangsang API server
+  version: 1.0.0
+x-global-options:
+  go_package: github.com/slilp/kangsang-go-api/internal/servers/grpc_servers/api_gen/gen/go;kangsang_grpc_server
+servers:
+  - url: http://localhost:8080
+    description: Development server
+paths:
+  /internal/category:
+    get:
+      tags:
+        - Category
+      summary: Get list categories
+      operationId: getListCategories
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            description: The current page index (starting from 1).
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            description: The number of items per page.
+            default: 20
+        - name: orderBy
+          in: query
+          required: false
+          schema:
+            type: string
+            description: The field to order by (e.g., name, updatedAt).
+      responses:
+        200:
+          $ref: "#/components/responses/ListCategoriesResponse"
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseData"
+components:
+  responses:
+    ListCategoriesResponse:
+      description: List categories response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryResponseData"
+              pagination:
+                $ref: "#/components/schemas/PageLimitResponseData"
+  schemas:
+    ErrorResponseData:
+      type: object
+      required:
+        - errorCode
+        - errorMessage
+      properties:
+        errorCode:
+          type: string
+          description: The error code.
+        errorMessage:
+          type: string
+          description: A human-readable message describing the error.
+    CategoryResponseData:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - coverImage
+        - updatedAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        coverImage:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    PageLimitResponseData:
+      type: object
+      required:
+        - page
+        - limit
+        - totalRecords
+      properties:
+        page:
+          type: integer
+          description: The current page index (starting from 1).
+        limit:
+          type: integer
+          description: The number of items per page.
+        totalRecords:
+          type: integer
+          description: The total number of records available.
+```
+
+You can use this OpenAPI YAML file as input for the gnostic tool to generate your `.proto` file.
+
+The steps to generate the `.proto` file from the OpenAPI specification are as follows:
+
+Generating gRPC code from OpenAPI (Swagger)
+
+To generate gRPC service definitions and Go code from an OpenAPI specification, you can use the following tools and commands:
+
+**Install required tools**:
+
+```sh
+go install github.com/google/gnostic@latest
+go install github.com/googleapis/gnostic-grpc@latest
+```
+
+**Generate the proto file**:
+
+```sh
+gnostic --grpc-out=./internal/servers/grpc_servers/api_gen ./docs/internal/grpc_server.yaml
+```
+
+**Clean up the generated proto file** (Maybe I am wrong, I am not sure why it generates some unnecessary imports that you maybe not use if you write it by your own, so I will remove them):
+
+```sh
+sed -i '' '/^import "google\/api\/annotations\.proto";/d' ./internal/servers/grpc_servers/api_gen/grpc_server.proto
+sed -i '' '/^import "google\/protobuf\/descriptor\.proto";/d' ./internal/servers/grpc_servers/api_gen/grpc_server.proto
+sed -i '' '/^import "google\/protobuf\/empty\.proto";/d' ./internal/servers/grpc_servers/api_gen/grpc_server.proto
+sed -i '' '/option (google.api.http)/d' ./internal/servers/grpc_servers/api_gen/grpc_server.proto
+sed -i '' '2a\'$$'\n''option go_package = "github.com/slilp/kangsang-go-api/internal/servers/grpc_servers/api_gen/gen/go;kangsang_grpc_server";' ./internal/servers/grpc_servers/api_gen/grpc_server.proto
+```
+
+These steps will help you convert your OpenAPI specification to a gRPC `.proto` file and prepare it for use in your Go project.
+
+```proto
+syntax = "proto3";
+
+option go_package = "github.com/slilp/kangsang-go-api/internal/servers/grpc_servers/api_gen/gen/go;kangsang_grpc_server";
+package grpc_server;
+
+message CategoryResponseData {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  string cover_image = 4;
+  string updated_at = 5;
+}
+
+message PageLimitResponseData {
+  int64 page = 1;
+  int64 limit = 2;
+  int64 total_records = 3;
+}
+
+message ListCategoriesResponse {
+  repeated CategoryResponseData data = 1;
+  PageLimitResponseData pagination = 2;
+}
+
+message GetListCategoriesRequest {
+  int64 page = 1;
+  int64 limit = 2;
+  string order_by = 3;
+}
+
+service Grpc_server {
+  rpc GetListCategories (GetListCategoriesRequest) returns (ListCategoriesResponse) {}
+}
+```
+
+### 2. **Generate Go code**: Use the `protoc` compiler to generate Go code from the `.proto` file.
+
+This will create the necessary service and message types.
+
+```sh
+protoc -I. \
+  --go_out=./ --go_opt=paths=source_relative \
+  --go-grpc_out=./ --go-grpc_opt=paths=source_relative \
+  ./internal/servers/grpc_servers/api_gen/grpc_server.proto
+```
+
+<MdxImage src="/blog/go-grpc_1.png" alt="go-grpc_1" />
+
+Yeah !! After you have the generated Go code, you can implement the gRPC server in Go.
+
+## Example: Implementing a gRPC Server in Go
+
+Here is a basic example of how to `implement a gRPC server and handler in Go:
+
+```go
+type GrpcServer struct {
+    pb.UnimplementedGrpcServerServer
+    Services GrpcServerServices
+}
+
+func (s *GrpcServer) GetListCategories(ctx context.Context, req *pb.GetListCategoriesRequest) (*pb.ListCategoriesResponse, error) {
+    // Example static data
+    return &pb.ListCategoriesResponse{
+        Data: []*pb.CategoryResponseData{
+            {Id: 1, Name: "Books", Description: "Books category", CoverImage: "", UpdatedAt: ""},
+            {Id: 2, Name: "Electronics", Description: "Electronics category", CoverImage: "", UpdatedAt: ""},
+            {Id: 3, Name: "Clothing", Description: "Clothing category", CoverImage: "", UpdatedAt: ""},
+        },
+        Pagination: &pb.PageLimitResponseData{
+            Page:         req.Page,
+            Limit:        req.Limit,
+            TotalRecords: 3,
+        },
+    }, nil
+}
+```
+
+Your main.go
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/slilp/kangsang-go-api/internal/config"
+	"github.com/slilp/kangsang-go-api/internal/middlewares"
+	"github.com/slilp/kangsang-go-api/internal/servers"
+	"github.com/slilp/kangsang-go-api/internal/servers/grpc_servers"
+	pb "github.com/slilp/kangsang-go-api/internal/servers/grpc_servers/api_gen"
+	"github.com/slilp/kangsang-go-api/internal/servers/http_servers/api_gen"
+	"google.golang.org/grpc"
+)
+
+func main() {
+	config.InitConfig()
+
+	db, err := servers.InitDatabase()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := servers.InitMigrations(db); err != nil {
+		log.Println("Error applying migrations:", err)
+	}
+
+	server := servers.NewAppServer(db)
+
+	if server == nil {
+		log.Fatal("server initialization failed")
+	}
+
+	go registerGrpcHandlers(&server.GrpcServer)
+
+	r := gin.Default()
+	r.Use(middlewares.AuthAccessTokenMiddleware)
+	api_gen.RegisterHandlers(r, &server.HttpServer)
+
+	s := &http.Server{
+		Handler: r,
+		Addr:    fmt.Sprintf("0.0.0.0:%s", config.Config.AppPort),
+	}
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-quit
+		log.Println("Shutting down server...")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		server.HttpServer.Adapters.QueueAdapter.Close()
+		server.HttpServer.Adapters.StreamAdapter.Close()
+
+		if err := s.Shutdown(ctx); err != nil {
+			log.Fatal("Server forced to shutdown:", err)
+		}
+	}()
+
+	if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("listen: %s\n", err)
+	}
+}
+
+func registerGrpcHandlers(server *grpc_servers.GrpcServer) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", config.Config.GrpcPort))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	grpcServer := grpc.NewServer()
+	pb.RegisterGrpcServerServer(grpcServer, server)
+	log.Printf("gRPC server listening on :%s", config.Config.GrpcPort)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve gRPC: %v", err)
+	}
+}
+```
+
+\*\*\*You can start the gRPC server alongside your HTTP server and other initializations in your main function.
+
+### 3. **Run the server**: Start the gRPC server and listen for incoming requests.
+
+<MdxImage src="/blog/go-grpc_2.png" alt="go-grpc_2" />
+
+<MdxImage src="/blog/go-grpc_3.png" alt="go-grpc_3" />
+
+---
+
+## Steps If you are client and want to call the gRPC server:
+
+### 1. **Import the generated gRPC client package**: In your Go client application, import the package that contains the generated gRPC client code.
+
+### 2. **Establish a connection to the gRPC server**: Use the gRPC client to connect to the server.
+
+Example: Initialize gRPC Client in Go
+
+```go
+import (
+	"fmt"
+	"log"
+
+	"github.com/slilp/kangsang-go-api/internal/config"
+	pb "github.com/slilp/kangsang-go-api/internal/servers/grpc_servers/api_gen"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+func InitGrpc() (pb.GrpcServerClient, error) {
+	conn, err := grpc.Dial(
+		fmt.Sprintf("%s:%s", config.Config.KangsangServiceHost, config.Config.KangsangServicePort),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+		return nil, err
+	}
+	grpcClient := pb.NewGrpcServerClient(conn)
+	return grpcClient, nil
+}
+```
+
+### 3. **Call the desired gRPC method**: Use the generated client methods to call the gRPC server methods.
+
+Example: Initialize gRPC Client in Go
+
+```go
+import (
+	"fmt"
+	"log"
+
+	"github.com/slilp/kangsang-go-api/internal/config"
+	pb "github.com/slilp/kangsang-go-api/internal/servers/grpc_servers/api_gen"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+func InitGrpc() (pb.GrpcServerClient, error) {
+	conn, err := grpc.Dial(
+		fmt.Sprintf("%s:%s", config.Config.KangsangServiceHost, config.Config.KangsangServicePort),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+		return nil, err
+	}
+	grpcClient := pb.NewGrpcServerClient(conn)
+	return grpcClient, nil
+}
+```
+
+```go
+func GetListCategories(grpcClient pb.GrpcServerClient, page, limit int32) (*pb.ListCategoriesResponse, error) {
+    ctx := context.Background()
+    req := &pb.GetListCategoriesRequest{
+        Page:  page,
+        Limit: limit,
+    }
+    resp, err := grpcClient.GetListCategories(ctx, req)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get list categories: %v", err)
+    }
+    return resp, nil
+}
+```
