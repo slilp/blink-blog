@@ -1,0 +1,207 @@
+Cryptography is one of concepts developer should know. For example, when you handle user passwords, you should never store them in plain text. Instead, you should use hashing and encryption techniques to protect sensitive information or you want to make message secure and confidential, you can use encryption.
+
+### Hashing with SHA-256
+
+Hash is a one-way function that converts data into a fixed-size string of characters, which is typically a hexadecimal number. It is commonly used for verifying data integrity and securely storing passwords.
+
+SHA-256 is a cryptographic hash function that produces a fixed-size 256-bit (32-byte / 64 char) hash.
+
+```go
+import (
+    "crypto/sha256"
+    "fmt"
+)
+
+func hashSHA256(data string) string {
+    sum := sha256.Sum256([]byte(data))
+    return fmt.Sprintf("%x", sum)
+}
+
+func main() {
+    hash := hashSHA256("hello world")
+    fmt.Println(hash) // Example output: b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
+}
+```
+
+**Main security point when using hashing:**
+
+**Rainbow tables**: Precomputed tables for reversing cryptographic hash functions, primarily used for cracking password hashes. For example if you hash text `this is my password`, an attacker could use a rainbow table to find the original password because
+
+> Hashing always produces the same output for the same input.  
+> This means if two users have the same password, their hashes will be identical, making it vulnerable to attacks from rainbow tables.
+
+**How to improve security when using hash ?**
+
+- Use a unique salt for each password before hashing to ensure that even if two users have the same password, their hashes will be different.
+- Salt is a random value added to the password before hashing, making it unique for each user.
+
+**Example: Hashing with a salt**
+
+```go
+import (
+    "crypto/sha256"
+    "crypto/rand"
+    "fmt"
+    "encoding/hex"
+)
+
+func hashWithSalt(password string, salt []byte) string {
+    data := append([]byte(password), salt...)
+    sum := sha256.Sum256(data)
+    return fmt.Sprintf("%x", sum)
+}
+
+func generateSalt(length int) ([]byte, error) {
+    salt := make([]byte, length)
+    _, err := rand.Read(salt)
+    return salt, err
+}
+
+func main() {
+    password := "hello world"
+    salt, err := generateSalt(16) // 16 bytes salt
+    if err != nil {
+        panic(err)
+    }
+    hash := hashWithSalt(password, salt)
+    fmt.Printf("Salt: %s\n", hex.EncodeToString(salt))
+    fmt.Printf("Hash: %s\n", hash)
+}
+```
+
+---
+
+### Symmetric Encryption: AES
+
+Encryption is the process of converting plaintext into ciphertext using an algorithm and a key and you can reverse this process to obtain the original plaintext.
+
+Symmetric encryption uses the same key for both encryption and decryption, while asymmetric encryption uses a pair of keys (public and private).
+
+AES (Advanced Encryption Standard) is a widely used symmetric encryption algorithm. The same key is used for both encryption and decryption.
+
+```go
+import (
+    "crypto/aes"
+    "crypto/cipher"
+    "crypto/rand"
+    "io"
+    "fmt"
+)
+
+func encryptAES(key, plaintext []byte) ([]byte, error) {
+    block, err := aes.NewCipher(key)
+    if err != nil {
+        return nil, err
+    }
+    ciphertext := make([]byte, aes.BlockSize+len(plaintext))
+    iv := ciphertext[:aes.BlockSize]
+    if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+        return nil, err
+    }
+    stream := cipher.NewCFBEncrypter(block, iv)
+    stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
+    return ciphertext, nil
+}
+
+func main() {
+    key := []byte("example key 1234") // 16 bytes for AES-128
+    plaintext := []byte("hello world")
+    ciphertext, err := encryptAES(key, plaintext)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("%x\n", ciphertext) // Example output: 8b8a... (hex string, number of characters not fixed, depends on plaintext length)
+}
+```
+
+---
+
+### Asymmetric Encryption: RSA
+
+RSA is an asymmetric algorithm using a public/private key pair. It's commonly used for encrypting small data, exchanging keys, and digital signatures.
+
+Public key :
+
+- Can send to anyone.
+- Encrypt data, and only the private key can decrypt it.
+- Verify signatures created by the private key.
+
+Private key :
+
+- Keep secret, never share it.
+- Decrypt data encrypted with the public key.
+
+```go
+import (
+    "crypto/rand"
+    "crypto/rsa"
+    "crypto/x509"
+    "fmt"
+)
+
+func encryptRSA(pub *rsa.PublicKey, msg []byte) ([]byte, error) {
+    return rsa.EncryptPKCS1v15(rand.Reader, pub, msg)
+}
+
+func decryptRSA(priv *rsa.PrivateKey, ciphertext []byte) ([]byte, error) {
+    return rsa.DecryptPKCS1v15(rand.Reader, priv, ciphertext)
+}
+
+func main() {
+    // Generate a test RSA key pair (2048 bits)
+    priv, err := rsa.GenerateKey(rand.Reader, 2048)
+    if err != nil {
+        panic(err)
+    }
+    pub := &priv.PublicKey
+
+    // Encrypt with public key
+    plaintext := []byte("hello world")
+    ciphertext, err := encryptRSA(pub, plaintext)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("Encrypted: %x\n", ciphertext)
+
+    // Decrypt with private key
+    decrypted, err := decryptRSA(priv, ciphertext)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("Decrypted: %s\n", decrypted)
+}
+```
+
+---
+
+### JWT (JSON Web Token)
+
+JWT is a compact, URL-safe token format used for authentication and information exchange. It consists of a header, payload, and signature.
+
+- **Header**: Algorithm & token type
+- **Payload**: Claims (user data, expiry, etc.)
+- **Signature**: Verifies integrity
+
+Example (using [github.com/golang-jwt/jwt/v5](https://github.com/golang-jwt/jwt)):
+
+```go
+import (
+    "github.com/golang-jwt/jwt/v5"
+    "time"
+)
+
+func createJWT(secret []byte) (string, error) {
+    claims := jwt.MapClaims{
+        "user_id": 123,
+        "exp":     time.Now().Add(time.Hour).Unix(),
+    }
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    return token.SignedString(secret)
+}
+```
+
+There is the most important problem that I think everyone new to JWT confused about:
+
+It is ... Why JWT is secure if everyone can read the payload ?
+
+> The answer is JWT is like a transparent letter. Anyone can read the contents, but if someone tries to change it, the signature will not match, and you will know that the letter (token) is invalid.

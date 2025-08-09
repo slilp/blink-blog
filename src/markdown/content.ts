@@ -143,7 +143,16 @@ const databaseContents: MarkdownContent[] = [
   },
 ];
 
+
+
 const securityContents: MarkdownContent[] = [
+  {
+    id: "cryptography",
+    title: "Cryptography concepts",
+    desc: "An overview of 4 cryptography concepts you should know.",
+    publishedAt: "2025-08-09",
+    tag: MarkdownTag.SECURITY,
+  },
   {
     id: "sql-injection",
     title: "SQL Injection",
