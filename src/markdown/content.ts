@@ -119,6 +119,13 @@ const softwareEngineerContents: MarkdownContent[] = [
     publishedAt: "2025-07-01",
     tag: MarkdownTag.SOFTWARE_DESIGN,
   },
+  {
+    id: "solid-principles",
+    title: "SOLID principles",
+    desc: "Briefly explain SOLID principles in software design.",
+    publishedAt: "2025-08-10",
+    tag: MarkdownTag.SOFTWARE_DESIGN,
+  },
 ];
 
 const otherContents: MarkdownContent[] = [
@@ -142,8 +149,6 @@ const databaseContents: MarkdownContent[] = [
     tag: MarkdownTag.DATABASE,
   },
 ];
-
-
 
 const securityContents: MarkdownContent[] = [
   {

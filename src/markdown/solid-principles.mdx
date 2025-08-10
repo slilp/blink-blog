@@ -1,0 +1,199 @@
+The SOLID principles are a set of five design guidelines intended to make software designs more understandable, flexible, and maintainable. They are especially important in object-oriented programming (or adapting the concept to non-object-oriented programming like GO).
+
+## 1. Single Responsibility Principle (SRP)
+
+This is simple concept: A class should have only one job or responsibility.
+
+**Example:**  
+A class that handles both database operations and user interface logic violates SRP. Instead, separate these concerns into different functions.
+
+```go
+// SRP: Separate responsibilities
+type User struct {
+    Name string
+}
+
+type UserRepository struct{}
+func (ur *UserRepository) Save(user User) { /* ... */ }
+
+type UserPrinter struct{}
+func (up *UserPrinter) Print(user User) { /* ... */ }
+```
+
+## 2. Open/Closed Principle (OCP)
+
+Software entities (classes, modules, functions, etc.) should be open for extension but closed for modification.
+
+This means you should be able to add new features or behaviors to your code without changing the existing, tested code. The main benefit is that you reduce the risk of introducing bugs into stable code and make your system more maintainable and scalable. In Go, this is often achieved by defining interfaces and writing code that depends on those interfaces, rather than concrete implementations. When you need new behavior, you implement the interface in a new type, rather than modifying existing types or functions.
+
+**Example:**  
+You should be able to add new functionality by adding new code, not by changing existing code. This can be achieved using interfaces or abstract classes.
+
+```go
+// OCP: Use interfaces for extension
+type Shape interface {
+    Area() float64
+}
+
+type Rectangle struct {
+    Width, Height float64
+}
+func (r Rectangle) Area() float64 { return r.Width * r.Height }
+
+type Circle struct {
+    Radius float64
+}
+func (c Circle) Area() float64 { return 3.14 * c.Radius * c.Radius }
+
+// Adding a new shape does not require modifying existing code:
+type Triangle struct {
+    Base, Height float64
+}
+func (t Triangle) Area() float64 { return 0.5 * t.Base * t.Height }
+
+func TotalArea(shapes []Shape) float64 {
+    total := 0.0
+    for _, s := range shapes {
+        total += s.Area()
+    }
+    return total
+}
+```
+
+In this example, you can add new shapes (like `Triangle`) by implementing the `Shape` interface, without changing the `TotalArea` function or the existing shape types. This demonstrates the Open/Closed Principle in practice.
+
+## 3. Liskov Substitution Principle (LSP)
+
+Objects of a superclass should be replaceable with objects of a subclass without affecting the correctness of the program.
+
+**Example:**  
+If class `Bird` has a method `fly()`, then any subclass like `Sparrow` should also be able to `fly()` without breaking the program.
+
+```go
+// LSP: Subtypes can substitute base types
+type Bird interface {
+    Fly()
+}
+
+type Sparrow struct{}
+func (s Sparrow) Fly() { /* ... */ }
+
+func LetBirdFly(b Bird) {
+    b.Fly()
+}
+```
+
+**Bad Example (LSP Violation):**  
+Suppose we add a `Penguin` type that cannot fly, but is forced to implement `Fly()` because of the `Bird` interface. This breaks the expectation that all `Bird`s can fly.
+
+```go
+type Penguin struct{}
+func (p Penguin) Fly() {
+    // This is a problem: Penguins can't fly!
+    panic("penguins can't fly")
+}
+
+// Now, passing a Penguin to LetBirdFly will cause a runtime panic:
+LetBirdFly(Penguin{}) // This will panic
+```
+
+This violates LSP because substituting `Penguin` for `Bird` breaks the program's correctness and expectations.
+
+## 4. Interface Segregation Principle (ISP)
+
+Clients should not be forced to depend on interfaces they do not use.
+
+**Example:**  
+Instead of one large interface with many methods, create smaller, more specific interfaces so that implementing classes only need to be concerned with the methods that are relevant to them.
+
+```go
+// ISP: Split interfaces
+type Printer interface {
+    Print()
+}
+
+type Scanner interface {
+    Scan()
+}
+
+type MultiFunctionDevice interface {
+    Printer
+    Scanner
+}
+```
+
+**Bad Example (ISP Violation):**  
+A single interface forces all implementers to provide methods they may not need.
+
+```go
+type Machine interface {
+    Print()
+    Scan()
+    Fax()
+}
+
+type OldPrinter struct{}
+
+func (op OldPrinter) Print() { /* ... */ }
+func (op OldPrinter) Scan()  { /* not supported */ }
+func (op OldPrinter) Fax()   { /* not supported */ }
+```
+
+Here, `OldPrinter` is forced to implement `Scan()` and `Fax()`, even though it only supports printing. This violates ISP because clients are forced to depend on methods they do not use.
+
+## 5. Dependency Inversion Principle (DIP)
+
+High-level modules should not depend on low-level modules. Both should depend on abstractions.
+
+> For me this is the most important principle, as it allows you to decouple your code and make it more flexible and testable especially in go.
+
+**Example:**  
+Instead of a class directly instantiating its dependencies, depend on interfaces or abstract classes and inject the dependencies, often via constructor injection.
+
+```go
+// DIP: Depend on abstractions
+type UserRepository interface {
+    GetUser(id int) (User, error)
+}
+
+type Service struct {
+    repo UserRepository
+}
+
+func NewService(r UserRepository) *Service {
+    return &Service{repo: r}
+}
+
+func (s *Service) PrintUser(id int) error {
+    user, err := s.repo.GetUser(id)
+    if err != nil {
+        return err
+    }
+    // business logic here, e.g. print user
+    fmt.Println(user.Name)
+    return nil
+}
+
+// MySQL implementation
+type MySQLRepo struct{}
+func (m MySQLRepo) GetUser(id int) (User, error) {
+    // fetch user from MySQL
+    return User{Name: "MySQL User"}, nil
+}
+
+// Postgres implementation
+type PostgresRepo struct{}
+func (p PostgresRepo) GetUser(id int) (User, error) {
+    // fetch user from Postgres
+    return User{Name: "Postgres User"}, nil
+}
+
+// Usage:
+service := NewService(MySQLRepo{})
+service.PrintUser(1) // Uses MySQL
+
+service = NewService(PostgresRepo{})
+service.PrintUser(2) // Uses Postgres
+```
+
+With this approach, you can swap out the repository implementation (MySQL, Postgres, etc.) without changing the logic in the `Service` layer. This demonstrates the Dependency Inversion Principle in practice.
