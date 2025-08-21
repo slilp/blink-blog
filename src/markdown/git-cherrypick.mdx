@@ -1,0 +1,50 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+In working life with git, you might find yourself in a situation where you accidentally create a new branch from the wrong commit or wrong branch. For example, you want to working on feature-2 branch but you accidentally create it from feature-1 branch. So when you want to merge feature-2 branch into main branch, you realize that it contains changes from feature-1 branch as well. This can lead to confusion and unwanted changes in your main branch.
+
+In this case, you can use `git cherry-pick` to apply the changes from the correct commit to your new branch.
+
+Today, I will show you how to use `git cherry-pick` to fix this issue and apply the changes from the correct commit to your new branch.
+
+---
+
+First I created a new branch `feature-1` and make a commit on it
+
+<MdxImage src="/blog/git-cherrypick_1.png" alt="git-cherrypick_1" />
+
+Then I created a new branch `feature-2` from `feature-1` (which is wrong) and make a commit on it
+
+<MdxImage src="/blog/git-cherrypick_2.png" alt="git-cherrypick_2" />
+
+From here, You can see that `feature-2` branch contains changes from `feature-1` branch as well.
+
+<MdxImage src="/blog/git-cherrypick_3.png" alt="git-cherrypick_3" />
+
+## How to deal with this?
+
+I will create a temp branch for `feature-2` -> `feature-2-temp` and then delete previous `feature-2` branch.
+
+```bash
+git checkout -b feature-2-temp
+git branch -D feature-2
+```
+
+Now I am a clear branch for `feature-2` and I can cherry-pick the commit I want from `feature-2-temp` branch.
+
+The commit I want is `b40ad30f412171e196459f5366c5d2f6ab04460` (you can find the commit hash by using `git log` command).
+
+```bash
+git cherry-pick b40ad30f412171e196459f5366c5d2f6ab04460
+```
+
+This will apply the changes from the specified commit to your current branch.
+
+<MdxImage src="/blog/git-cherrypick_4.png" alt="git-cherrypick_4" />
+
+Yeah! Now your `feature-2` branch contains only the correct commit and is ready to merge.
+
+Finally, you can delete the temporary branch `feature-2-temp` if you no longer need it.
+
+```bash
+git branch -D feature-2-temp
+```

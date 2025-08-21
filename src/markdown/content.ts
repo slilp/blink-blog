@@ -130,6 +130,13 @@ const softwareEngineerContents: MarkdownContent[] = [
 
 const otherContents: MarkdownContent[] = [
   {
+    id: "git-cherrypick",
+    title: "Git cherry pick",
+    desc: "What happens when you accidentally create a branch from the wrong initial branch?",
+    publishedAt: "2025-08-21",
+    tag: MarkdownTag.OTHER,
+  },
+  {
     id: "postman-scripts",
     title: "Postman Scripts",
     desc: "How to use Postman pre/post script",
