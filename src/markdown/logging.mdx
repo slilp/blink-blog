@@ -1,0 +1,267 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+Logging is a critical aspect of building and maintaining distributed systems. In a distributed environment, services are often spread across multiple machines, containers, or even data centers. This makes it challenging to trace issues, monitor system health, and understand the flow of requests. Effective logging helps developers and operators gain visibility into the system, debug problems, and ensure reliability.
+
+## Logging with ELK stack
+
+The ELK Stack (Elasticsearch, Logstash, Kibana) is a popular solution for centralized logging in distributed systems.
+
+- **Elasticsearch** stores and indexes logs for fast search and analytics.
+- **Logstash** processes and transforms logs before sending them to Elasticsearch.
+- **Kibana** lets you visualize and explore your logs with dashboards and search.
+- **Filebeat** (optional) collects logs from your services and ships them to Logstash.
+
+<MdxImage src="/blog/logging_1.png" alt="logging_1" />
+
+The diagram above shows Filebeat collecting logs from each service, sending them to Logstash, which processes and forwards them to Elasticsearch. Kibana is used to view and analyze the logs.
+
+## Setup ELK Stack and Filebeat
+
+In local development, you can use Docker Compose to set up the ELK stack and Filebeat. Here's a simple `docker-compose.yml` file to get you started:
+
+```yaml
+version: "3.9"
+services:
+  elasticsearch:
+    image: elasticsearch:8.17.1
+    container_name: elasticsearch
+    restart: always
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data/
+    environment:
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xmx256m -Xms256m
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+    networks:
+      - elk-network
+
+  logstash:
+    image: logstash:8.17.1
+    container_name: logstash
+    restart: always
+    volumes:
+      - ./logstash/:/logstash_dir
+    command: logstash -f /logstash_dir/pipeline/logstash.conf
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5044:5044"
+    environment:
+      - LS_JAVA_OPTS=-Xmx256m -Xms256m
+    networks:
+      - elk-network
+
+  kibana:
+    image: kibana:8.17.1
+    container_name: kibana
+    restart: always
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk-network
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.17.1
+    container_name: filebeat
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs:/logs:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - LOGSTASH_HOSTS=logstash:5044
+    depends_on:
+      - logstash
+    networks:
+      - elk-network
+
+networks:
+  elk-network:
+    driver: bridge
+
+volumes:
+  elastic_data: {}
+```
+
+And you must create a `logstash.conf` and `filebeat.yml` in the same directory as your `docker-compose.yml`:
+
+```yaml
+filebeat.inputs:
+  - type: filestream
+    id: kangsang-logs
+    enabled: true
+    paths:
+      - /logs/*.log
+    parsers:
+      - ndjson:
+          overwrite_keys: true
+          add_error_key: true
+          expand_keys: true
+
+output.logstash:
+  hosts: ["logstash:5044"]
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_kubernetes_metadata: ~
+```
+
+In this configuration, Filebeat collects all `.log` files from the `/logs` directory (which should be mounted from your Go application) and sends them to Logstash.
+
+In production, you shouldn't log to files directly. Instead, configure Filebeat to read from Docker container logs at `/var/lib/docker/containers/*/*.log`.
+
+```conf
+input {
+  beats {
+    port => 5044
+  }
+}
+output {
+  elasticsearch {
+    hosts => ["elasticsearch:9200"]
+    index => "kangsang-logs-test-%{+YYYY.MM.dd}"
+    //This index is the most important that you need to use in kibana to view your logs
+  }
+}
+```
+
+## Example: Logging Setup in Go
+
+Here's a simple example using [Uber's zap logger](https://github.com/uber-go/zap) and [Elastic Common Schema (ECS)](https://www.elastic.co/guide/en/ecs/current/index.html) for structured logging:
+
+```go
+package logger
+
+import (
+	"os"
+
+	"go.elastic.co/ecszap"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+var Logger *zap.Logger
+
+func init() {
+	if err := os.MkdirAll("./logs", 0755); err != nil {
+		panic(err)
+	}
+	encoderConfig := ecszap.NewDefaultEncoderConfig()
+	encoder := zapcore.NewJSONEncoder(encoderConfig.ToZapCoreEncoderConfig())
+	logFile, err := os.OpenFile("./logs/app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+	fileWriter := zapcore.AddSync(logFile)
+
+	stdoutWriter := zapcore.AddSync(os.Stdout)
+	multiWriter := zapcore.NewMultiWriteSyncer(fileWriter, stdoutWriter)
+	core := ecszap.WrapCore(zapcore.NewCore(encoder, multiWriter, zapcore.InfoLevel))
+	Logger = zap.New(core, zap.AddCaller())
+}
+
+func ActionLogger(funcName string) *zap.Logger {
+	return Logger.With(zap.String("func", funcName))
+}
+```
+
+Here's how you can use the logger in a user login handler:
+
+```go
+func (h *HttpServer) LoginUser(ctx *gin.Context) {
+	log := logger.ActionLogger("LoginUser")
+	var req api_gen.LoginRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		log.Error("Failed to bind JSON", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, api_gen.ErrorResponse{ErrorCode: "400", ErrorMessage: err.Error()})
+		return
+	}
+
+	if err := h.Utils.Validate.Struct(&req); err != nil {
+		var errors []string
+		for _, err := range err.(validator.ValidationErrors) {
+			errors = append(errors, err.Field()+" "+err.Tag()+" "+err.Param())
+		}
+		log.Error("Validation failed", zap.Strings("validation_errors", errors))
+		ctx.JSON(http.StatusBadRequest, api_gen.ErrorResponse{ErrorCode: "400", ErrorMessage: strings.Join(errors, ",")})
+		return
+	}
+
+	result, err := h.Services.AuthenticationService.Login(req.Email, req.Password)
+	if err != nil {
+		log.Error("Invalid login attempt", zap.String("email", req.Email), zap.Error(err))
+		ctx.JSON(http.StatusUnauthorized, api_gen.ErrorResponse{ErrorCode: "401", ErrorMessage: "Invalid email or password"})
+		return
+	}
+
+	response, err := mapUserAuthResponse(result)
+	if err != nil {
+		log.Error("Failed to map user auth response", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, api_gen.ErrorResponse{ErrorCode: "500", ErrorMessage: err.Error()})
+		return
+	}
+
+	log.Info("User logged in successfully", zap.String("email", req.Email))
+	ctx.JSON(http.StatusOK, response)
+}
+```
+
+## Explore you logs in Kibana
+
+In this example, I configured Filebeat to read logs from `/logs/*.log`, which is where the Go application writes its logs. This is example log output:
+
+```json
+{
+  "log.level": "info",
+  "@timestamp": "2025-10-02T21:58:49.590+0700",
+  "log.origin": {
+    "function": "main.registerGrpcHandlers",
+    "file.name": "cmd/main.go",
+    "file.line": 94
+  },
+  "message": "gRPC server listening",
+  "port": "50051",
+  "ecs.version": "1.6.0"
+}
+```
+
+When you go to Kibana (http://localhost:5601), you can see the observability dashboard.
+
+<MdxImage src="/blog/logging_2.png" alt="logging_2" />
+
+At first, you might see that no logs are found.
+
+<MdxImage src="/blog/logging_3.png" alt="logging_3" />
+
+Even if you explore further, you still might not see any logs.
+
+<MdxImage src="/blog/logging_4.png" alt="logging_4" />
+
+> **⚠️ DON'T PANIC!**  
+> This is a common mistake that took me an hour to figure out.  
+> **You need to configure the index pattern in Kibana to match the index name used in the Logstash output configuration.**
+
+Click Create a data view
+
+<MdxImage src="/blog/logging_5.png" alt="logging_5" />
+
+<MdxImage src="/blog/logging_6.png" alt="logging_6" />
+
+Yeah! Now the magic happens.
+
+<MdxImage src="/blog/logging_7.png" alt="logging_7" />
+
+(I will write about how to use Kibana logs to troubleshoot issues in a future post.)
+
+## Conclusion
+
+Logging in distributed systems is essential for observability, debugging, and monitoring. By following best practices and leveraging tools like zap and ELK, you can build robust logging pipelines that help you maintain and scale your Go applications.

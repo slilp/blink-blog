@@ -109,6 +109,13 @@ const goContents: MarkdownContent[] = [
     publishedAt: "2025-06-10",
     tag: MarkdownTag.GO,
   },
+  {
+    id: "logging",
+    title: "Logging in Distributed Systems",
+    desc: "Effective logging strategies with ELK stack for distributed systems using Go.",
+    publishedAt: "2025-10-02",
+    tag: MarkdownTag.GO,
+  },
 ];
 
 const softwareEngineerContents: MarkdownContent[] = [
