@@ -120,6 +120,20 @@ const goContents: MarkdownContent[] = [
 
 const softwareEngineerContents: MarkdownContent[] = [
   {
+    id: "kafka",
+    title: "Play with Kafka - Part 1: Single",
+    desc: "The fundamental concepts of Kafka you should know.",
+    publishedAt: "2025-10-15",
+    tag: MarkdownTag.SOFTWARE_DESIGN,
+  },
+  {
+    id: "kafka-2",
+    title: "Play with Kafka - Part 2: Cluster",
+    desc: "The fundamental concepts of Kafka you should know.",
+    publishedAt: "2025-10-16",
+    tag: MarkdownTag.SOFTWARE_DESIGN,
+  },
+  {
     id: "design-diagram-tools",
     title: "Design Diagrams tools for software engineers",
     desc: "A collection of tools that can help software engineers in your daily work.",
