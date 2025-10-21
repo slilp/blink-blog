@@ -1,0 +1,261 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+In the previous article [Kafka single broker](/blog/kafka), we explored Kafka basics with a single broker. Now let's dive into Kafka clusters - the real deal for production environments.
+
+A single Kafka broker is fine for development, but production requires:
+
+- **High Availability**: If one broker fails, others continue serving
+- **Fault Tolerance**: Data replication prevents data loss
+- **Scalability**: Distribute load across multiple machines
+- **Performance**: Better throughput with parallel processing
+
+### Install By using Docker Compose
+
+```yaml
+version: "3.8"
+
+services:
+  kafka-broker-1:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka-broker-1
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:29093,2@kafka-broker-2:29093,3@kafka-broker-3:29093
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-1:29092,CONTROLLER://kafka-broker-1:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    volumes:
+      - ./kafka-logs/kafka-1:/var/lib/kafka/data
+
+  kafka-broker-2:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka-broker-2
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:29092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:29093,2@kafka-broker-2:29093,3@kafka-broker-3:29093
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-2:29092,CONTROLLER://kafka-broker-2:29093,PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    volumes:
+      - ./kafka-logs/kafka-2:/var/lib/kafka/data
+
+  kafka-broker-3:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka-broker-3
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:29092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:29093,2@kafka-broker-2:29093,3@kafka-broker-3:29093
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-3:29092,CONTROLLER://kafka-broker-3:29093,PLAINTEXT_HOST://0.0.0.0:9094
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    volumes:
+      - ./kafka-logs/kafka-3:/var/lib/kafka/data
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-broker-1:29092,kafka-broker-2:29092,kafka-broker-3:29092
+
+volumes:
+  kafka-1-data:
+  kafka-2-data:
+  kafka-3-data:
+```
+
+Go to localhost:8080, you will see Kafka UI dashboard.
+
+<MdxImage src="/blog/kafka-2_1.png" alt="kafka-2_1" />
+
+You can see three brokers in the cluster and a broker is selected to be `Active controller`.
+
+The Active Controller is controlled by `KRaft` (the new Kafka protocol that replaces `Zookeeper`). This controller is the leader of the Raft quorum and manages the internal metadata topic `__cluster_metadata`. It's responsible for all metadata changes like creating/deleting topics, updating configurations, and managing partition leader election. All brokers communicate with this active controller for metadata updates.
+
+> In short, the Active Controller helps coordinate and manage the overall health and metadata of the Kafka cluster.
+
+\*If the current Active Controller fails, another broker will be elected as the new Active Controller to ensure continuous operation of the Kafka cluster.
+
+### Producer
+
+Unlike a single node, topics in a Kafka cluster can benefit from multiple brokers.
+
+When creating a topic, you can specify `Min in sync Replicas` and `Replication Factor`.
+
+- Min in sync Replicas: The minimum number of replicas that must acknowledge a write for it to be considered successful.
+- Replication Factor: The number of copies of each partition that will be maintained across different brokers.
+
+* In the image below, I created 2 replications, but the recommended minimum replication should be 3 because your system can lose 1 broker and still maintain both data integrity (durability) and write availability.
+
+<MdxImage src="/blog/kafka-2_2.png" alt="kafka-2_2" />
+
+Because the replication factor is 3, each partition has 3 replicas across different brokers.
+
+<MdxImage src="/blog/kafka-2_3.png" alt="kafka-2_3" />
+
+In the replicas column, you can see which broker is holding the replica for that partition, and the `Leader` green text indicates which broker is the leader for that partition.
+
+When producing messages to the topic, the producer will send the message to the leader of the partition. The leader will then replicate the message to the other replicas.
+
+### Consumer
+
+Actually, the consumer side is the same as with a single broker. But in this case, I will create 3 consumers in the same consumer group to consume messages from the topic.
+
+In a consumer group, there is an important rule:
+
+> Each partition is consumed by only one consumer in the group.
+
+I will produce 5 messages to the topic across all 5 partitions.
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: go run consumer.go <consumer-id>")
+		fmt.Println("Example: go run consumer.go 1")
+		os.Exit(1)
+	}
+
+	consumerID := os.Args[1]
+	emoji := getEmoji(consumerID)
+
+	conf := kafka.ConfigMap{
+		"bootstrap.servers": "localhost:9092,localhost:9093,localhost:9094",
+		"group.id":          "my-consumer-group",
+		"auto.offset.reset": "earliest",
+		"client.id":         "consumer-" + consumerID,
+	}
+
+	topic := "user.activity.page-view.v1"
+
+	consumer, err := kafka.NewConsumer(&conf)
+	if err != nil {
+		fmt.Printf("Consumer-%s failed to create: %s\n", consumerID, err)
+		os.Exit(1)
+	}
+	defer consumer.Close()
+
+	err = consumer.SubscribeTopics([]string{topic}, nil)
+	if err != nil {
+		fmt.Printf("Consumer-%s failed to subscribe: %s\n", consumerID, err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s CONSUMER-%s started. Group: my-consumer-group\n", emoji, consumerID)
+
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+
+	run := true
+	for run == true {
+		select {
+		case sig := <-sigchan:
+			fmt.Printf("\n%s Consumer-%s caught signal %v: Terminating\n", emoji, consumerID, sig)
+			run = false
+		default:
+			ev := consumer.Poll(100)
+			if ev == nil {
+				continue
+			}
+
+			switch e := ev.(type) {
+			case *kafka.Message:
+				key := string(e.Key)
+				value := string(e.Value)
+
+				fmt.Printf("%s CONSUMER-%s | Partition: %d | Offset: %d | Key: %s | Value: %s | Time: %s\n",
+					emoji, consumerID, e.TopicPartition.Partition, e.TopicPartition.Offset, key, value, time.Now().Format("15:04:05"))
+
+			case kafka.AssignedPartitions:
+				fmt.Printf("%s CONSUMER-%s assigned partitions: %v\n", emoji, consumerID, e)
+				consumer.Assign(e.Partitions)
+
+			case kafka.RevokedPartitions:
+				fmt.Printf("%s CONSUMER-%s revoked partitions: %v\n", emoji, consumerID, e)
+				consumer.Unassign()
+
+			case kafka.Error:
+				fmt.Printf("%s CONSUMER-%s Error: %v\n", emoji, consumerID, e)
+			}
+		}
+	}
+}
+
+func getEmoji(id string) string {
+	switch id {
+	case "1":
+		return "🔵"
+	case "2":
+		return "🟢"
+	case "3":
+		return "🟣"
+	default:
+		return "⚪"
+	}
+}
+```
+
+In separate terminals, run 3 consumers with different IDs:
+
+```bash
+go run consumer.go 1
+go run consumer.go 2
+go run consumer.go 3
+```
+
+<MdxImage src="/blog/kafka-2_4.png" alt="kafka-2_4" />
+
+You can see that when producing 5 messages, the consumers only consume messages from their assigned partitions.
