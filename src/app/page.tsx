@@ -36,7 +36,7 @@ export default function Home() {
           desc=""
           image1="/react-logo.png"
           image2="/nestjs-logo.svg"
-          path="/blog/tag/next"
+          path="/blog/tag/typescript"
         />
         <JourneyCard
           title="Go :"

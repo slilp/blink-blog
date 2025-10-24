@@ -151,6 +151,13 @@ const softwareEngineerContents: MarkdownContent[] = [
 
 const otherContents: MarkdownContent[] = [
   {
+    id: "vscode-tricks",
+    title: "VSCode Productivity Tricks",
+    desc: "Tips and tricks to enhance your productivity in Visual Studio Code.",
+    publishedAt: "2025-10-24",
+    tag: MarkdownTag.OTHER,
+  },
+  {
     id: "git-cherrypick",
     title: "Git cherry pick",
     desc: "What happens when you accidentally create a branch from the wrong initial branch?",

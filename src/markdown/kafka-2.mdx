@@ -112,22 +112,22 @@ Go to localhost:8080, you will see Kafka UI dashboard.
 
 You can see three brokers in the cluster and a broker is selected to be `Active controller`.
 
-The Active Controller is controlled by `KRaft` (the new Kafka protocol that replaces `Zookeeper`). This controller is the leader of the Raft quorum and manages the internal metadata topic `__cluster_metadata`. It's responsible for all metadata changes like creating/deleting topics, updating configurations, and managing partition leader election. All brokers communicate with this active controller for metadata updates.
+the Active Controller is controled by , `KRaft` (The new Kafka protocol that replace `zookeeper`). This controller is the leader of the Raft quorum and manages the internal metadata topic `__cluster_metadata`. It's responsible for all metadata changes like creating/deleting topics, updating configurations, and managing partition leader election. All brokers communicate with this active controller for metadata updates
 
-> In short, the Active Controller helps coordinate and manage the overall health and metadata of the Kafka cluster.
+> In short, the Active Controller is help coordinate and manage the overall health and metadata of the Kafka cluster.
 
 \*If the current Active Controller fails, another broker will be elected as the new Active Controller to ensure continuous operation of the Kafka cluster.
 
 ### Producer
 
-Unlike a single node, topics in a Kafka cluster can benefit from multiple brokers.
+Not like a single node, `topic` in kafka cluster can benefit from multiple brokers.
 
-When creating a topic, you can specify `Min in sync Replicas` and `Replication Factor`.
+When creating a topic, you can specific `Min in sync Replicas` and `Replication Factor`.
 
 - Min in sync Replicas: The minimum number of replicas that must acknowledge a write for it to be considered successful.
-- Replication Factor: The number of copies of each partition that will be maintained across different brokers.
+- Replication Factor: The number of copies of each partition that will be maintained across different brokers
 
-* In the image below, I created 2 replications, but the recommended minimum replication should be 3 because your system can lose 1 broker and still maintain both data integrity (durability) and write availability.
+* In the image below, I created 2 replication but in recommendation the min replication should be 3 because Your system can lose 1 broker and still maintain both data integrity (durability) and write availability.
 
 <MdxImage src="/blog/kafka-2_2.png" alt="kafka-2_2" />
 
@@ -135,19 +135,19 @@ Because the replication factor is 3, each partition has 3 replicas across differ
 
 <MdxImage src="/blog/kafka-2_3.png" alt="kafka-2_3" />
 
-In the replicas column, you can see which broker is holding the replica for that partition, and the `Leader` green text indicates which broker is the leader for that partition.
+In the replicas column, you can see which broker is holding the replica for that partition and `the Leader` green text indicates which broker is the leader for that partition.
 
 When producing messages to the topic, the producer will send the message to the leader of the partition. The leader will then replicate the message to the other replicas.
 
 ### Consumer
 
-Actually, the consumer side is the same as with a single broker. But in this case, I will create 3 consumers in the same consumer group to consume messages from the topic.
+Actually, the consumer side is the same as single broker. But in this case,I will create 3 consumers in the same consumer group to consume messages from the topic.
 
-In a consumer group, there is an important rule:
+In a consumer group there is an important rule:
 
 > Each partition is consumed by only one consumer in the group.
 
-I will produce 5 messages to the topic across all 5 partitions.
+I will produce 5 messages to the topic to all 5 partitions.
 
 ```go
 package main
@@ -248,7 +248,7 @@ func getEmoji(id string) string {
 }
 ```
 
-In separate terminals, run 3 consumers with different IDs:
+Seperate terminal, run 3 consumers with different IDs:
 
 ```bash
 go run consumer.go 1
@@ -258,4 +258,4 @@ go run consumer.go 3
 
 <MdxImage src="/blog/kafka-2_4.png" alt="kafka-2_4" />
 
-You can see that when producing 5 messages, the consumers only consume messages from their assigned partitions.
+You can see that when producing 5 messages, the consumers consume only messages from assigned partitions.
