@@ -1,0 +1,312 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+In modern software development, monitoring and observability are crucial for maintaining healthy applications. Prometheus and Grafana form a powerful combination for collecting, storing, and visualizing metrics.
+
+In this article, I'll explore how to set up Go application to sending business metrics to display on grafana.
+
+## Prometheus / Pushgateway / Grafana architectures
+
+<MdxImage src="/blog/prometheus_1.png" alt="prometheus_1" />
+
+In this architecture, You will see that I use pushgateway as an intermediary service.
+
+Actually, you can use Prometheus alone without Pushgateway if your application can be scraped directly. However, using Pushgateway provides flexibility for scenarios where direct scraping is not feasible.
+
+In this case, I want to collect metrics from business logic layer such as count number of success/fail activity , response time and other custom metrics. So that cannot be directly scraped by Prometheus.
+
+`Pushgateway` is an intermediary service that allows your applications to push metrics.
+
+`Prometheus` is a tool that pulls metrics from pushgateway and stores them in a time-series database.
+
+`Grafana` is a visualization and analytics platform that works seamlessly with Prometheus. It allows you to create beautiful dashboards and set up alerts based on your metrics data.
+
+## Setting Up Metrics in Go
+
+First, initialize your metric adapter with Prometheus push gateway support:
+
+```go
+func InitMetricAdapter() adapters.IMetricAdapter {
+    registry := prometheus.NewRegistry()
+
+    metricURL := config.Config.MetricURL
+    jobName := config.Config.MetricJobName
+
+    pusher := push.New(metricURL, jobName).
+        Gatherer(registry).
+        Grouping("instance", "kangsang-api-1").
+        Grouping("version", "1.0.0")
+
+    defaultInterval := 30 * time.Second
+    if config.Config.MetricPushInterval > 0 {
+        defaultInterval = time.Duration(config.Config.MetricPushInterval) * time.Second
+    }
+
+    metricAdapter := adapters.NewMetricAdapter(registry)
+
+    if pusher != nil {
+        go func() {
+            ticker := time.NewTicker(defaultInterval)
+            defer ticker.Stop()
+
+			for range ticker.C {
+				if err := pusher.Push(); err != nil {
+					log.Printf("Error pushing metrics: %v", err)
+				} else {
+					log.Println("Metrics pushed successfully")
+					metricAdapter.ClearMetrics()
+				}
+			}
+        }()
+
+        log.Printf("Started auto-push with interval: %v", defaultInterval)
+    }
+
+    return metricAdapter
+}
+```
+
+```go
+package adapters
+
+import (
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/slilp/kangsang-go-api/internal/consts"
+)
+
+type MetricDefinition struct {
+	Type    string
+	Name    string
+	Help    string
+	Labels  []string
+	Buckets []float64 // Only for histograms
+}
+
+type IMetricAdapter interface {
+    ClearMetrics()
+	RecordHTTPRequest(method, path, status string)
+	RecordHTTPDuration(method, path string, duration time.Duration)
+	IncHTTPInFlight()
+	DecHTTPInFlight()
+}
+type metricAdapter struct {
+	registry *prometheus.Registry
+
+	counters     map[string]*prometheus.CounterVec
+	gauges       map[string]*prometheus.GaugeVec
+	histograms   map[string]*prometheus.HistogramVec
+	simpleGauges map[string]prometheus.Gauge
+}
+
+func NewMetricAdapter(registry *prometheus.Registry) IMetricAdapter {
+	adapter := &metricAdapter{
+		registry:     registry,
+		counters:     make(map[string]*prometheus.CounterVec),
+		gauges:       make(map[string]*prometheus.GaugeVec),
+		histograms:   make(map[string]*prometheus.HistogramVec),
+		simpleGauges: make(map[string]prometheus.Gauge),
+	}
+
+	adapter.registerPredefinedMetrics()
+
+	return adapter
+}
+
+var (
+	httpRequestsTotal = MetricDefinition{
+		Type:   consts.METRIC_TYPE_COUNTER,
+		Name:   consts.HTTP_REQUESTS_TOTAL_NAME,
+		Help:   "Total number of HTTP requests",
+		Labels: []string{consts.LABEL_METHOD, consts.LABEL_PATH, consts.LABEL_STATUS},
+	}
+
+	httpRequestDuration = MetricDefinition{
+		Type:    consts.METRIC_TYPE_HISTOGRAM,
+		Name:    consts.HTTP_REQUEST_DURATION_NAME,
+		Help:    "HTTP request duration in seconds",
+		Labels:  []string{consts.LABEL_METHOD, consts.LABEL_PATH},
+		Buckets: prometheus.DefBuckets,
+	}
+
+	httpRequestsInFlight = MetricDefinition{
+		Type: consts.METRIC_TYPE_GAUGE,
+		Name: consts.HTTP_REQUESTS_IN_FLIGHT_NAME,
+		Help: "Number of HTTP requests currently being processed",
+	}
+)
+
+var predefinedMetrics = []MetricDefinition{
+	httpRequestsTotal,
+	httpRequestDuration,
+	httpRequestsInFlight,
+}
+
+func (m *metricAdapter) registerPredefinedMetrics() {
+	for _, metric := range predefinedMetrics {
+		switch metric.Type {
+		case consts.METRIC_TYPE_COUNTER:
+			if len(metric.Labels) > 0 {
+				counter := prometheus.NewCounterVec(
+					prometheus.CounterOpts{
+						Name: metric.Name,
+						Help: metric.Help,
+					},
+					metric.Labels,
+				)
+				m.registry.MustRegister(counter)
+				m.counters[metric.Name] = counter
+			}
+		case consts.METRIC_TYPE_GAUGE:
+			if len(metric.Labels) > 0 {
+				gauge := prometheus.NewGaugeVec(
+					prometheus.GaugeOpts{
+						Name: metric.Name,
+						Help: metric.Help,
+					},
+					metric.Labels,
+				)
+				m.registry.MustRegister(gauge)
+				m.gauges[metric.Name] = gauge
+			} else {
+				gauge := prometheus.NewGauge(
+					prometheus.GaugeOpts{
+						Name: metric.Name,
+						Help: metric.Help,
+					},
+				)
+				m.registry.MustRegister(gauge)
+				m.simpleGauges[metric.Name] = gauge
+			}
+		case consts.METRIC_TYPE_HISTOGRAM:
+			buckets := metric.Buckets
+			if buckets == nil {
+				buckets = prometheus.DefBuckets
+			}
+			histogram := prometheus.NewHistogramVec(
+				prometheus.HistogramOpts{
+					Name:    metric.Name,
+					Help:    metric.Help,
+					Buckets: buckets,
+				},
+				metric.Labels,
+			)
+			m.registry.MustRegister(histogram)
+			m.histograms[metric.Name] = histogram
+		}
+	}
+}
+
+func (m *metricAdapter) RecordHTTPRequest(method, path, status string) {
+	if counter, exists := m.counters[consts.HTTP_REQUESTS_TOTAL_NAME]; exists {
+		counter.WithLabelValues(method, path, status).Inc()
+	}
+}
+
+func (m *metricAdapter) RecordHTTPDuration(method, path string, duration time.Duration) {
+	if histogram, exists := m.histograms[consts.HTTP_REQUEST_DURATION_NAME]; exists {
+		histogram.WithLabelValues(method, path).Observe(duration.Seconds())
+	}
+}
+
+func (m *metricAdapter) IncHTTPInFlight() {
+	if gauge, exists := m.simpleGauges[consts.HTTP_REQUESTS_IN_FLIGHT_NAME]; exists {
+		gauge.Inc()
+	}
+}
+
+func (m *metricAdapter) DecHTTPInFlight() {
+	if gauge, exists := m.simpleGauges[consts.HTTP_REQUESTS_IN_FLIGHT_NAME]; exists {
+		gauge.Dec()
+	}
+}
+
+func (m *metricAdapter) ClearMetrics() {
+	for _, counter := range m.counters {
+		counter.Reset()
+	}
+
+	for _, histogram := range m.histograms {
+		histogram.Reset()
+	}
+
+	for _, gauge := range m.gauges {
+		gauge.Reset()
+	}
+
+	for _, gauge := range m.simpleGauges {
+		gauge.Set(0)
+	}
+}
+```
+
+You can see that in the example metrics above, I have diffrent types of metrics such as Counter, Gauge and Histogram.
+
+This is three main types of Prometheus metrics:
+
+1. **Counter**: A cumulative metric that only increases (e.g., total HTTP requests)
+2. **Gauge**: A metric that can go up and down (e.g., current memory usage)
+3. **Histogram**: A metric that samples observations and counts them in buckets (e.g., request duration)
+
+From the metric adapter, you can call the functions from you business logic layer:
+
+```go
+func (r *authenticationService) Register(req api_gen.RegisterRequest) error {
+	start := time.Now()
+	defer func() {
+		r.metricAdapter.RecordHTTPDuration("POST", "/api/auth/register", time.Since(start))
+		r.metricAdapter.DecHTTPInFlight()
+	}()
+
+	r.metricAdapter.IncHTTPInFlight()
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		r.metricAdapter.RecordHTTPRequest("POST", "/api/auth/register", "500")
+		return err
+	}
+
+	err = r.userRepo.CreateNew(entity.User{
+		Email:       req.Email,
+		Password:    string(hashedPassword),
+		DisplayName: req.DisplayName,
+	})
+
+	if err != nil {
+		r.metricAdapter.RecordHTTPRequest("POST", "/api/auth/register", "400")
+		return err
+	}
+
+	r.metricAdapter.RecordHTTPRequest("POST", "/api/auth/register", "200")
+
+	return nil
+}
+```
+
+### Visualization
+
+First, Check at prometheus to see if it can scrape the metrics from pushgateway:
+
+<MdxImage src="/blog/prometheus_2.png" alt="prometheus_2" />
+
+If you see status `Up` for your job, it means Prometheus is successfully scraping metrics from Pushgateway.
+
+And try to query some metrics in Prometheus expression browser:
+
+<MdxImage src="/blog/prometheus_3.png" alt="prometheus_3" />
+
+Next, you can set up Grafana to visualize the metrics stored in Prometheus.
+
+<MdxImage src="/blog/prometheus_4.png" alt="prometheus_4" />
+
+When grafana is connected to Prometheus data source, you can create a new dashboard and add a panel to visualize your metrics.
+
+<MdxImage src="/blog/prometheus_5.png" alt="prometheus_5" />
+
+<MdxImage src="/blog/prometheus_6.png" alt="prometheus_6" />
+
+You can customize the visualization type, time range, and other settings to suit your needs.
+
+---
+
+** For more details on using Grafana dashboards, I will cover it in another article. **

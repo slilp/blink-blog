@@ -120,6 +120,13 @@ const goContents: MarkdownContent[] = [
 
 const softwareEngineerContents: MarkdownContent[] = [
   {
+    id: "prometheus",
+    title: "Metric monitoring with Prometheus and Grafana",
+    desc: "How to sending metrics from your application to Prometheus and visualize them with Grafana.",
+    publishedAt: "2025-10-30",
+    tag: MarkdownTag.SOFTWARE_DESIGN,
+  },
+  {
     id: "kafka",
     title: "Play with Kafka - Part 1: Single",
     desc: "The fundamental concepts of Kafka you should know.",
