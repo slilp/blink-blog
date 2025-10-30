@@ -8,24 +8,18 @@ In this article, I'll explore how to set up Go application to sending business m
 
 <MdxImage src="/blog/prometheus_1.png" alt="prometheus_1" />
 
-In this architecture, You will see that I use pushgateway as an intermediary service.
+In this architecture, I will show you that prometheus can pull data from both `Pushgateway` and `Direct API Server`.
 
-Actually, you can use Prometheus alone without Pushgateway if your application can be scraped directly. However, using Pushgateway provides flexibility for scenarios where direct scraping is not feasible.
-
-In this case, I want to collect metrics from business logic layer such as count number of success/fail activity , response time and other custom metrics. So that cannot be directly scraped by Prometheus.
-
-`Pushgateway` is an intermediary service that allows your applications to push metrics.
-
-`Prometheus` is a tool that pulls metrics from pushgateway and stores them in a time-series database.
+`Pushgateway` is useful for short-lived jobs that need to push their metrics to a central location, while `Direct API Server` is suitable for long-running services that can be scraped directly.
 
 `Grafana` is a visualization and analytics platform that works seamlessly with Prometheus. It allows you to create beautiful dashboards and set up alerts based on your metrics data.
 
 ## Setting Up Metrics in Go
 
-First, initialize your metric adapter with Prometheus push gateway support:
+First, initialize your metric adapter with Prometheus push gateway support and registry for direct scraping:
 
 ```go
-func InitMetricAdapter() adapters.IMetricAdapter {
+func InitMetricAdapter() (*prometheus.Registry, adapters.IMetricAdapter) {
     registry := prometheus.NewRegistry()
 
     metricURL := config.Config.MetricURL
@@ -61,8 +55,17 @@ func InitMetricAdapter() adapters.IMetricAdapter {
         log.Printf("Started auto-push with interval: %v", defaultInterval)
     }
 
-    return metricAdapter
+	return registry, metricAdapter
 }
+```
+
+And create path `/metrics` in your API server to expose metrics for Prometheus to scrape directly:
+
+```go
+//main.go
+
+r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 ```
 
 ```go
@@ -72,6 +75,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/slilp/kangsang-go-api/internal/consts"
 )
 
@@ -83,12 +87,18 @@ type MetricDefinition struct {
 	Buckets []float64 // Only for histograms
 }
 
+//go:generate mockgen -source=./metric.go -destination=./mocks/mock_metric_adapter.go -package=mock_adapters
 type IMetricAdapter interface {
-    ClearMetrics()
 	RecordHTTPRequest(method, path, status string)
 	RecordHTTPDuration(method, path string, duration time.Duration)
 	IncHTTPInFlight()
 	DecHTTPInFlight()
+	ClearMetrics()
+	// Direct pull metrics
+	RecordHTTPRequestDirect(method, path, status string)
+	RecordHTTPDurationDirect(method, path string, duration time.Duration)
+	IncHTTPInFlightDirect()
+	DecHTTPInFlightDirect()
 }
 type metricAdapter struct {
 	registry *prometheus.Registry
@@ -134,6 +144,32 @@ var (
 		Name: consts.HTTP_REQUESTS_IN_FLIGHT_NAME,
 		Help: "Number of HTTP requests currently being processed",
 	}
+)
+
+var (
+	httpRequestsDirectCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: consts.HTTP_REQUESTS_TOTAL_NAME,
+			Help: "Total number of HTTP requests (directly registered)",
+		},
+		[]string{consts.LABEL_METHOD, consts.LABEL_PATH, consts.LABEL_STATUS},
+	)
+
+	httpRequestDurationDirectHistogram = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    consts.HTTP_REQUEST_DURATION_NAME,
+			Help:    "HTTP request duration in seconds (directly registered)",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{consts.LABEL_METHOD, consts.LABEL_PATH},
+	)
+
+	httpRequestsInFlightDirectGauge = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: consts.HTTP_REQUESTS_IN_FLIGHT_NAME,
+			Help: "Number of HTTP requests currently being processed (directly registered)",
+		},
+	)
 )
 
 var predefinedMetrics = []MetricDefinition{
@@ -238,6 +274,22 @@ func (m *metricAdapter) ClearMetrics() {
 		gauge.Set(0)
 	}
 }
+
+func (m *metricAdapter) RecordHTTPRequestDirect(method, path, status string) {
+	httpRequestsDirectCounter.WithLabelValues(method, path, status).Inc()
+}
+
+func (m *metricAdapter) RecordHTTPDurationDirect(method, path string, duration time.Duration) {
+	httpRequestDurationDirectHistogram.WithLabelValues(method, path).Observe(duration.Seconds())
+}
+
+func (m *metricAdapter) IncHTTPInFlightDirect() {
+	httpRequestsInFlightDirectGauge.Inc()
+}
+
+func (m *metricAdapter) DecHTTPInFlightDirect() {
+	httpRequestsInFlightDirectGauge.Dec()
+}
 ```
 
 You can see that in the example metrics above, I have diffrent types of metrics such as Counter, Gauge and Histogram.
@@ -248,7 +300,7 @@ This is three main types of Prometheus metrics:
 2. **Gauge**: A metric that can go up and down (e.g., current memory usage)
 3. **Histogram**: A metric that samples observations and counts them in buckets (e.g., request duration)
 
-From the metric adapter, you can call the functions from you business logic layer:
+From the metric adapter, you can call the functions from you business logic layer for example:
 
 ```go
 func (r *authenticationService) Register(req api_gen.RegisterRequest) error {
@@ -285,25 +337,49 @@ func (r *authenticationService) Register(req api_gen.RegisterRequest) error {
 
 ### Visualization
 
-First, Check at prometheus to see if it can scrape the metrics from pushgateway:
+First, Check at prometheus to see if it can scrape the metrics from pushgateway and direct api server:
 
 <MdxImage src="/blog/prometheus_2.png" alt="prometheus_2" />
 
-If you see status `Up` for your job, it means Prometheus is successfully scraping metrics from Pushgateway.
+** Don't forget to configure your `prometheus.yml` file to include both Pushgateway and your API server as scrape targets. **
+
+```yaml
+global:
+  scrape_interval: 15s # How often to scrape targets
+
+scrape_configs:
+  # Job to scrape Prometheus itself because we can check health status of prometheus server too
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Job to scrape the Pushgateway
+  - job_name: "pushgateway"
+    # honor_labels: true is highly recommended for Pushgateway
+    honor_labels: true
+    static_configs:
+      - targets: ["pushgateway:9091"] # Uses the service name and port from docker-compose
+
+  # Job to scrape the Go API service directly
+  - job_name: "kangsang-go-api"
+    scrape_interval: 10s # Scrape more frequently for real-time metrics
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+    scrape_timeout: 5s
+```
+
+If you see status `Up` for your job, it means Prometheus is successfully scraping metrics from Pushgateway and your API server.
 
 And try to query some metrics in Prometheus expression browser:
 
 <MdxImage src="/blog/prometheus_3.png" alt="prometheus_3" />
 
-Next, you can set up Grafana to visualize the metrics stored in Prometheus.
+Next, when Grafana is connected to Prometheus data source, you can create a new dashboard and add a panel to visualize your metrics.
 
 <MdxImage src="/blog/prometheus_4.png" alt="prometheus_4" />
 
-When grafana is connected to Prometheus data source, you can create a new dashboard and add a panel to visualize your metrics.
-
 <MdxImage src="/blog/prometheus_5.png" alt="prometheus_5" />
-
-<MdxImage src="/blog/prometheus_6.png" alt="prometheus_6" />
 
 You can customize the visualization type, time range, and other settings to suit your needs.
 
