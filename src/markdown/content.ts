@@ -119,6 +119,13 @@ const goContents: MarkdownContent[] = [
 ];
 
 const softwareEngineerContents: MarkdownContent[] = [
+    {
+    id: "nginx",
+    title: "Nginx functionalities",
+    desc: "Functionalities of Nginx you should know.",
+    publishedAt: "2025-11-01",
+    tag: MarkdownTag.SOFTWARE_DESIGN,
+  },
   {
     id: "prometheus",
     title: "Metric monitoring with Prometheus and Grafana",
