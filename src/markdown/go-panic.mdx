@@ -1,0 +1,167 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+If you're coming from JavaScript, Java, or Python, you might be surprised that Go doesn't have try-catch blocks.
+
+This is because Go takes a different approach to error handling that emphasizes simplicity and clarity. In this article, I'll explore why Go doesn't have try-catch, what it has instead, and how to effectively handle errors in Go.
+
+## Why Go Doesn't Have Try-Catch ?
+
+Go's creators believe that errors should be handled explicitly rather than hidden in exception flows. This makes code more readable and forces developers to think about error cases upfront.
+
+```javascript
+// JavaScript - errors are hidden in try-catch
+try {
+  const data = JSON.parse(jsonString);
+  processData(data);
+} catch (error) {
+  console.log("Something went wrong:", error);
+}
+```
+
+```go
+// Go - errors are explicit
+data, err := parseJSON(jsonString)
+if err != nil {
+    log.Printf("Failed to parse JSON: %v", err)
+    return
+}
+processData(data)
+```
+
+Moreover, `try-catch` blocks can make control flow unclear because exceptions can jump from anywhere to the catch block. Go's approach keeps the flow linear and predictable.
+
+## What Go Has Instead
+
+`panic` and `recover` are Go's way to handle truly exceptional situations, similar to exceptions in other languages. However, they are not meant for regular error handling.
+
+```go
+func panicSection(){
+	defer func() {
+        if r := recover(); r != nil {
+            log.Printf("Recovered from panic: %v", r)
+        }
+    }()
+
+    // This will panic
+    panic("something went terribly wrong")
+}
+
+func main() {
+    panicSection()
+
+	fmt.Println("You will not see this line if not handle panic")
+}
+```
+
+First time try to comment defer and run the code, you will see the program crashes and prints the panic message.
+Second time uncomment and run the code, you will see the panic is recovered and the program continues executing.
+
+<MdxImage src="/blog/go-panic_1.png" alt="go-panic_1" />
+
+IMPORTANT !!
+
+> panic/recover are scoped to the goroutine they are called in not the entire program like try/catch can.
+
+> panic/recover should only be used for unrecoverable errors, not for normal error handling.
+
+Here's a critical example showing that if a goroutine panics without recovery, **the entire program crashes** - even if the main goroutine has a recover mechanism:
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	// This recover in main goroutine CANNOT catch panic from other goroutines
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Main recovered:", r)
+		}
+	}()
+
+	fmt.Println("Starting goroutine...")
+
+	// Launch a goroutine that will panic
+	go func() {
+		time.Sleep(1 * time.Second)
+		fmt.Println("About to panic in goroutine!")
+		panic("BOOM! Goroutine panic")
+		// This panic will crash the entire program
+	}()
+
+	// Main goroutine continues
+	time.Sleep(2 * time.Second)
+	fmt.Println("You will NEVER see this line")
+}
+```
+
+<MdxImage src="/blog/go-panic_2.png" alt="go-panic_2" />
+
+### Real-World Example: Recovery API request
+
+If your API request handler might panic, it could crash your entire server or make your API unresponsive. To prevent this, you should wrap each request handler with a recovery mechanism at middleware.
+
+```go
+package main
+
+import (
+	"log"
+	"net/http"
+	"runtime/debug"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Custom recovery middleware
+func RecoveryMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if err := recover(); err != nil {
+				// Log the panic
+				log.Printf("Panic recovered: %v\n%s", err, debug.Stack())
+
+				// Return error response
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "Internal server error",
+					"code":  "PANIC_RECOVERED",
+				})
+
+				c.Abort()
+			}
+		}()
+
+		c.Next()
+	}
+}
+
+func main() {
+	r := gin.New()
+
+	// Apply recovery middleware globally
+	r.Use(RecoveryMiddleware())
+
+	r.GET("/safe", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "This endpoint is safe"})
+	})
+
+	r.GET("/dangerous", func(c *gin.Context) {
+		// This will panic but server stays alive!
+		panic("Something went wrong in handler")
+		c.JSON(http.StatusOK, gin.H{"message": "You'll never see this"})
+	})
+
+	log.Println("Server starting on :8080")
+	r.Run(":8080")
+}
+```
+
+If I comment middleware and call to `/dangerous` path I don't see the 500 error response.
+
+<MdxImage src="/blog/go-panic_3.png" alt="go-panic_3" />
+
+But if I keep the middleware, the server recovers gracefully and returns a 500 error response without crashing.
+
+<MdxImage src="/blog/go-panic_4.png" alt="go-panic_4" />

@@ -68,6 +68,13 @@ const typescriptContents: MarkdownContent[] = [
 
 const goContents: MarkdownContent[] = [
   {
+    id: "go-panic",
+    title: "panic and recover",
+    desc: "Error handling patterns in Go.",
+    publishedAt: "2025-11-06",
+    tag: MarkdownTag.GO,
+  },
+  {
     id: "go-grpc",
     title: "gRPC in Go",
     desc: "A high-performance RPC framework.",
@@ -119,7 +126,7 @@ const goContents: MarkdownContent[] = [
 ];
 
 const softwareEngineerContents: MarkdownContent[] = [
-    {
+  {
     id: "nginx",
     title: "Nginx functionalities",
     desc: "Functionalities of Nginx you should know.",
