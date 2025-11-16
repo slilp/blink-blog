@@ -6,6 +6,7 @@ export enum MarkdownTag {
   ALGORYTHM = "algorythm",
   SECURITY = "security",
   DATABASE = "database",
+  DEVOPS = "devops",
   OTHER = "other",
 }
 
@@ -25,6 +26,7 @@ export const markdownTags: Record<MarkdownTag, string> = {
   [MarkdownTag.ALGORYTHM]: "DSA",
   [MarkdownTag.DATABASE]: "Database",
   [MarkdownTag.SECURITY]: "Security",
+  [MarkdownTag.DEVOPS]: "DevOps",
   [MarkdownTag.OTHER]: "Whatever I Want",
 };
 
@@ -223,6 +225,16 @@ const securityContents: MarkdownContent[] = [
   },
 ];
 
+const devopsContents: MarkdownContent[] = [
+  {
+    id: "aws-network",
+    title: "AWS 101 networking components ",
+    desc: "Learn the networking components in AWS (VPC, Subnets, Route Tables, Internet Gateway, Security Groups)",
+    publishedAt: "2025-11-15",
+    tag: MarkdownTag.DEVOPS,
+  },
+];
+
 export const allContents: MarkdownContent[] = [
   ...typescriptContents,
   ...goContents,
@@ -231,6 +243,7 @@ export const allContents: MarkdownContent[] = [
   ...algorythmContents,
   ...databaseContents,
   ...securityContents,
+  ...devopsContents,
 ];
 
 export const contentMap: Record<MarkdownTag, MarkdownContent[]> = {
@@ -238,6 +251,7 @@ export const contentMap: Record<MarkdownTag, MarkdownContent[]> = {
   [MarkdownTag.TYPESCRIPT]: typescriptContents,
   [MarkdownTag.GO]: goContents,
   [MarkdownTag.SOFTWARE_DESIGN]: softwareEngineerContents,
+  [MarkdownTag.DEVOPS]: devopsContents,
   [MarkdownTag.OTHER]: otherContents,
   [MarkdownTag.ALGORYTHM]: algorythmContents,
   [MarkdownTag.DATABASE]: databaseContents,

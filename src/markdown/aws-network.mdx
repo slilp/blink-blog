@@ -1,0 +1,148 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+CAUTION! : Before reading this article, please note that I am a developer, not a DevOps engineer. In this article, I'll explain DevOps concepts from a developer's perspective, focusing on architectural understanding rather than DevOps implementation details.
+
+---
+
+AWS networking is the foundation of building cloud applications. Understanding the core networking components is essential for architecting systems on AWS.
+
+In this article, I'll explore the key AWS networking components and how they work together.
+
+## What we will cover in this article
+
+This diagram shows the main networking components and how they interact with each other.
+
+Don't worry if you don't understand everything right away. We'll go through each component step by step.
+
+<MdxImage src="/blog/aws-network_1.png" alt="aws-network_1" />
+
+## VPC (Virtual Private Cloud): The Beginning of Everything
+
+A VPC is the fundamental building block of AWS networking. It allows you to define your address space in the cloud.
+
+<MdxImage src="/blog/aws-network_2.png" alt="aws-network_2" />
+
+The important thing when creating a VPC is to choose an appropriate CIDR block (IP address range).
+
+### What is an IPv4 CIDR block?
+
+A CIDR block is basically the range of IP addresses available for your VPC.
+
+- /16 = 65,536 addresses (most common for VPC)
+- /24 = 256 addresses (common for subnets)
+- /28 = 16 addresses (small subnet)
+
+Think of your VPC like a large building:
+
+- CIDR block = Total number of units in the building
+- 10.0.0.0/16 = A building with 65,536 rooms (units)
+- Later you'll divide these into subnets (floors) like 10.0.1.0/24 (256 rooms per floor)
+
+**For most projects: 10.0.0.0/16 is perfect**
+
+## Subnets: Dividing Your VPC
+
+<MdxImage src="/blog/aws-network_3.png" alt="aws-network_3" />
+
+As mentioned before, a VPC (building) is divided into smaller networks called subnets (floors), and each subnet (floor) has its own CIDR block.
+
+In this example, I set up 10.0.1.0/24, which means this subnet can have 256 IP addresses from 10.0.1.0 to 10.0.1.255.
+
+## Internet Gateway: Connecting Your VPC to the Internet
+
+If you want your VPC to communicate with the internet, you need an Internet Gateway (IGW). Without this, no internet access is possible.
+
+<MdxImage src="/blog/aws-network_4.png" alt="aws-network_4" />
+
+## Route Tables: Directing Traffic
+
+A route table is like a map with signs or directions to tell your network where traffic should go.
+
+Each subnet must be associated with a route table. If there are no signs or directions (route tables), it's like you're stuck in your room!
+
+<MdxImage src="/blog/aws-network_5.png" alt="aws-network_5" />
+
+After creating an Internet Gateway, you need to update the route table to add routes as needed.
+
+In this example, I want to add a route to the internet, which means I need a route to my internet gateway.
+
+<MdxImage src="/blog/aws-network_6.png" alt="aws-network_6" />
+
+- 10.0.0.0/16 → local (If going to another room in the same building (10.0.x.x) → use internal hallway)
+- 0.0.0.0/0 → igw-xxxxx (If going anywhere else (internet) → go through the main gate (IGW))
+
+### Security Groups: Instance-level Firewall
+
+Instance-level firewall? Hard to understand, right?
+
+To explain simply, it's like a security guard that controls who can enter and leave each room (instance).
+
+<MdxImage src="/blog/aws-network_7.png" alt="aws-network_7" />
+
+Inbound (Who can enter my room?):
+✅ Only ME (SSH) - only I can log in
+❌ Nobody else - but anyone can see my website from the internet!
+
+Outbound (Where can I go?):
+✅ Anywhere - to download patches
+
+### Instance (EC2): Your Virtual Server
+
+Finally, you can launch EC2 instances (virtual servers) inside your subnets.
+
+<MdxImage src="/blog/aws-network_8.png" alt="aws-network_8" />
+
+After all of our setup above, you can access your EC2 instance with SSH login from your local machine.
+
+**DO NOT forget to `enable` `Auto-assign Public IP`. Without this, you won't be able to access your instance from the internet.**
+
+<MdxImage src="/blog/aws-network_9.png" alt="aws-network_9" />
+
+If you followed along but still can't access your instance, double-check your setup path.
+
+> VPC (Building) -> Subnet (Floor) -> EC2 Instance (Your Room) -> Security Group (Door Lock) -> Route Table (Direction Signs) -> Internet Gateway (Main Gate) -> Internet (Outside World)
+
+Let's see the first diagram again to recap everything.
+
+<MdxImage src="/blog/aws-network_1.png" alt="aws-network_1" />
+
+### Let the Internet Access Your EC2 Instance
+
+After you can access your EC2 instance with SSH, the last step is to let the internet access your EC2 instance (for example, to host a web server).
+
+Install an example web server (Nginx) on your EC2 instance with the following commands:
+
+```
+# Update package manager
+sudo yum update -y
+
+# Install Nginx
+sudo yum install nginx -y
+
+# Start Nginx
+sudo systemctl start nginx
+
+# Enable Nginx to start on boot
+sudo systemctl enable nginx
+
+# Check status
+sudo systemctl status nginx
+```
+
+Update your security group to allow inbound HTTP traffic from anywhere.
+
+<MdxImage src="/blog/aws-network_10.png" alt="aws-network_10" />
+
+<MdxImage src="/blog/aws-network_11.png" alt="aws-network_11" />
+
+🎉 CONGRATULATIONS on setting up your first web server! 🎉
+
+---
+
+Many people may feel this learning is simple and not worth celebrating.
+
+But trust me, this is a great first step for a developer to understand cloud networking architecture.
+
+If you're not a DevOps engineer, you may be excellent at creating APIs and websites, but you might not know what happens after you click the deploy button and let DevOps handle everything behind the scenes.
+
+So cheer up and keep learning more about DevOps architecture to reach the next level.
