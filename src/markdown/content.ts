@@ -233,6 +233,13 @@ const devopsContents: MarkdownContent[] = [
     publishedAt: "2025-11-15",
     tag: MarkdownTag.DEVOPS,
   },
+  {
+    id: "kubernetes-core",
+    title: "Kubernetes - Part 1: Core Concepts And Commands",
+    desc: "the core concepts of Kubernetes and some basic commands to get you started.",
+    publishedAt: "2025-11-16",
+    tag: MarkdownTag.DEVOPS,
+  },
 ];
 
 export const allContents: MarkdownContent[] = [

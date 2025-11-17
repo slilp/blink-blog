@@ -1,0 +1,353 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+CAUTION! : Before reading this article, please note that I am a developer, not a DevOps engineer. In this article, I'll explain Kubernetes concepts from a developer's perspective, focusing on architectural understanding rather than advanced DevOps implementation details.
+
+---
+
+Kubernetes is an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications.
+
+If you are a developer, today `Kubernetes` is an essential skill for modern application deployment best practices.
+
+## Start from the ground up
+
+This article will guide you through the following core Kubernetes concepts and using the `kubectl` command-line tool to interact with the cluster.
+
+### Core Concepts and Components
+
+<MdxImage src="/blog/kubernetes-core_1.png" alt="kubernetes-core_1" />
+
+1. **Pod** - The smallest deployable unit in Kubernetes
+2. **Deployment** - Managing replicated applications
+3. **Service** - Exposing applications to network traffic
+4. **Ingress** - Managing external HTTP(S) access
+
+Are you confused ? Yes It sounds complicated at first.
+
+Let me explain these concepts using a simple analogy like a restaurant.
+
+### The Restaurant (Kubernetes)
+
+1. **Pod (Cooking Station)** - A Pod is like a single cooking station where chefs prepare dishes (This is where your application running in a container).
+
+You can have multiple stations that handle for the same dish (multiple Pods for the same application)
+
+> More stations you have, more dishes you can prepare at the same time (scaling).
+
+2. **Deployment (Station Manager)** - A Deployment is like the station manager of each station type who ensures you always have enough cooking stations running
+
+Each station type will have different station manager for example
+
+Burger Station Manager (Deployment for Burger)
+
+Pasta Station Manager (Deployment for Pasta)
+
+Salad Station Manager (Deployment for Salad)
+
+But they all have the same responsibility:
+
+- Maintain the desired number of cooking stations (Pods) running at all times
+- Replace new worker when any station that stops working like your worker sick (Pod crashes)
+- Scale up or down the number of stations based on demand
+
+> Each pod type will have only one deployment managing it. Normally we will create deployment and pods in the same time. You don't need to create Pods manually. You create the Deployment, and it creates the Pods for you!
+
+3. **Service (Waiter)** - A Service is like the waiter where all orders arrive first. customers (users) don't choose which specific cooking station makes their food - they just place their order at a waiter.
+
+Important! Actually Service is not the waiter because waiter can get order and route to any station but Service only routes to specific station type.
+
+> One Service handle to one station type but multiple stations (Pods) under that type.
+
+4. **Ingress (Host Stand)** - An Ingress is like the entrance manager who reads check the reservation and directs customers to the right dining area
+
+> Ingress handles multiple services (waiters) and routes requests based on customers'requirement (URL paths or hostnames).
+
+Lest's convert the restaurant to be a full example of real-world restaurant app using Kubernetes concepts:
+
+```
+Ingress (Host Stand) - foodapp.com
+├── Checks your order type
+├── Has security (SSL certificate)
+│
+├── foodapp.com/search →
+│ └── Search Waiter (Service)
+│ └── Station Manager (Deployment: 4 stations)
+│ ├── Search Station 1 (Pod) - finding restaurants
+│ ├── Search Station 2 (Pod) - finding restaurants
+│ ├── Search Station 3 (Pod) - finding restaurants
+│ └── Search Station 4 (Pod) - finding restaurants
+│
+├── foodapp.com/order →
+│ └── Order Waiter (Service)
+│ └── Station Manager (Deployment: 6 stations)
+│ ├── Order Station 1 (Pod) - processing orders
+│ ├── Order Station 2 (Pod) - processing orders
+│ ├── Order Station 3 (Pod) - processing orders
+│ ├── Order Station 4 (Pod) - processing orders
+│ ├── Order Station 5 (Pod) - processing orders
+│ └── Order Station 6 (Pod) - processing orders
+│
+└── foodapp.com/payment →
+└── Payment Waiter (Service)
+└── Station Manager (Deployment: 8 stations - needs more!)
+├── Payment Station 1 (Pod)
+├── Payment Station 2 (Pod)
+├── ... (8 total stations)
+
+```
+
+🔥 What happens is rush hour (High Traffic) and how your app or restaurant handles the increased demand?
+
+Like I mentioned before, each Deployment (Station Manager) is responsible for maintaining the desired number of Pods (Cooking Stations).
+
+For example in normal time: 6 order stations but when rush hour comes, the Station Manager can automatically scale up more stations to handle the increased load and close extra stations when the rush ends.
+
+```
+├── foodapp.com/order →
+│ └── Order Waiter (Service)
+│ └── Station Manager (Deployment: 10 stations)
+│ ├── Order Station 1 (Pod) - processing orders
+│ ├── Order Station 2 (Pod) - processing orders
+│ ├── Order Station 3 (Pod) - processing orders
+│ ├── Order Station 4 (Pod) - processing orders
+│ ├── Order Station 5 (Pod) - processing orders
+│ └── Order Station 6 (Pod) - processing ordersf
+│ ├── Order Station 7 (Pod) - processing orders
+│ ├── Order Station 8 (Pod) - processing orders
+│ ├── Order Station 9 (Pod) - processing orders
+│ └── Order Station 10 (Pod) - processing orders
+```
+
+---
+
+## Let's Implement the real one so you can touch and feel it!
+
+<MdxImage src="/blog/kubernetes-core_2.png" alt="kubernetes-core_2" />
+
+This is all we will implement in this article. Don't worry if you don't understand everything right away. We'll go through each component step by step.
+
+---
+
+### Setting up Kubernetes Cluster in AWS
+
+As I mentioned in my article about cloud networking ([AWS 101 networking components](/blog/aws-network)), understanding the basics of networking is important before diving into Kubernetes.
+
+We start from create list of networking components for our Kubernetes cluster.
+
+The check list what we need before creating the cluster:
+
+1. VPC
+2. Subnets : The minimum requirement for Kubernetes cluster is 2 AZs with public and private subnets for allow cluster node can scale.
+
+- Public Subnets (AZ1, AZ2) with tag kubernetes.io/role/elb = 1 : This is where the Load Balancer (Ingress) will be created to allow external traffic to access the cluster.
+- Private Subnets (AZ1, AZ2) with tag kubernetes.io/role/internal-elb = 1 : This is where the Kubernetes worker nodes will be created to run your applications securely.
+
+3. NAT Gateways : To allow the worker nodes in private subnets to access the internet for updates and pulling container images.
+
+In the networking article I don't explain about NAT Gateway so I will explain it here briefly.
+
+NAT Gateway is a service that allows instances in a private subnet (our worker nodes) to connect to the internet such as downloading updates or pulling container images from Docker Hub.
+
+NAT Gateway isn't like Internet Gateway, we need Internet Gateway one per VPC but NAT Gateway should be created per Availability Zone for high availability.
+
+<MdxImage src="/blog/kubernetes-core_3.png" alt="kubernetes-core_3" />
+
+> Although we need NAT Gateway for private subnet but when you create it. It must be placed in a public subnet because it needs to access the Internet Gateway (IGW) to perform its function
+
+4. Internet Gateway
+
+5. Route Tables :
+
+- 2 Route Tables for private subnets in each AZ (attact to NAT Gateways)
+
+  <MdxImage src="/blog/kubernetes-core_4.png" alt="kubernetes-core_4" />
+
+- 1 Route Table for public subnets (attach to Internet Gateway)
+
+Okay! Now we have all networking components ready. Let's create the Kubernetes cluster.
+
+<MdxImage src="/blog/kubernetes-core_5.png" alt="kubernetes-core_5" />
+
+After that you should setup the cluster use only private subnets for worker nodes.
+
+```
+kubectl apply -f - <<'EOF'
+apiVersion: eks.amazonaws.com/v1
+kind: NodeClass
+metadata:
+  name: default
+spec:
+  ephemeralStorage:
+    iops: 3000
+    size: 80Gi
+    throughput: 125
+  networkPolicy: DefaultAllow
+  networkPolicyEventLogs: Disabled
+  role: AmazonEKSAutoNodeRole
+  securityGroupSelectorTerms:
+  - id: sg-0a680d53c08cb072b
+  snatPolicy: Random
+  subnetSelectorTerms:
+  - id: subnet-0bf3ef754c363f008 (private AZ1)
+  - id: subnet-09a07aba5468a287e (private AZ2)
+EOF
+```
+
+kubernetes cluster have karpenter for auto scaling worker nodes so when you deploy the application it will create worker nodes automatically.
+
+<MdxImage src="/blog/kubernetes-core_6.png" alt="kubernetes-core_6" />
+
+check that you can access the cluster
+
+```
+aws eks update-kubeconfig --region <region> --name <cluster-name>
+
+kubectl get nodes
+```
+
+<MdxImage src="/blog/kubernetes-core_7.png" alt="kubernetes-core_7" />
+
+Everything look good! Now we can deploy our application to the cluster.
+
+---
+
+## Ready to play! Welcome to Kubernetes world
+
+Some basic commands to get the core components I explain with the restaurant analogy.
+
+But first, let's create a namespace for to keep things organized.
+
+```
+kubectl create namespace <your-namespace>
+
+//set it to default namespace so you don't need to specify namespace every time
+kubectl config set-context --current --namespace=<your-namespace>
+```
+
+#### Create deployment And pods
+
+You can create deployment with this command:
+
+```
+kubectl create deployment <deployment-name> --image=<your-container-image> --replicas=<number-of-pods>
+```
+
+<MdxImage src="/blog/kubernetes-core_9.png" alt="kubernetes-core_9" />
+
+and get description to see the pods
+
+```
+kubectl get description pod/<pod-name>
+```
+
+<MdxImage src="/blog/kubernetes-core_10.png" alt="kubernetes-core_10" />
+
+And you can get inside the pos to check that your pod can go outside the cluster (internet access) (NAT Gateway working!)
+
+```
+kubectl exec -it <pod-name> -- /bin/sh
+```
+
+<MdxImage src="/blog/kubernetes-core_11.png" alt="kubernetes-core_11" />
+
+#### Create Service
+
+we need to create service to expose our deployment (pods) to the network traffic.
+
+```
+kubectl expose deployment <deployment-name> --type=ClusterIP --port=<port> --target-port=<target-port>
+```
+
+In this example I will pull another image(apache server) to use it as a webserver together with nginx but different path (to check our ingress work).
+
+<MdxImage src="/blog/kubernetes-core_12.png" alt="kubernetes-core_12" />
+
+<MdxImage src="/blog/kubernetes-core_13.png" alt="kubernetes-core_13" />
+
+everything look good! Now It it time to let's you app go outside the cluster.
+
+#### Create Ingress
+
+To make your application accessible from outside the cluster, you need to create
+
+1. Ingress Controller
+
+After installation, get the Load Balancer hostname that AWS assigns to your Ingress:
+
+```
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install ingress-nginx ingress-nginx/ingress-nginx --namespace kube-system \
+ --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-scheme"="internet-facing"
+
+INGRESS_HOST=$(kubectl --namespace kube-system get services ingress-nginx-controller \
+ --output jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo $INGRESS_HOST
+```
+
+<MdxImage src="/blog/kubernetes-core_14.png" alt="kubernetes-core_14" />
+
+You need to create Ingress controller just once per cluster.
+
+This hostname is what you'll use to access your applications. You can point your DNS records to this hostname, or use it directly in your browser for testing.
+
+2. Ingress routing rules
+
+ingress is responsible for routing external traffic to the appropriate services within your Kubernetes cluster based on defined rules.
+
+(You can ้ฟอำ multiple ingress services under one ingress controller.)
+
+```
+kubectl apply -f - <<EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  namespace: blog-kube
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80
+          - path: /apache-server
+            pathType: Prefix
+            backend:
+              service:
+                name: apache
+                port:
+                  number: 80
+EOF
+```
+
+when description the ingress you will see the internal ip of your service that ingress is routing to.
+
+<MdxImage src="/blog/kubernetes-core_15.png" alt="kubernetes-core_15" />
+
+All done! Now you can access your application using the Ingress hostname.
+
+<MdxImage src="/blog/kubernetes-core_16.png" alt="kubernetes-core_16" />
+
+with path `/apache-server` for apache service
+
+<MdxImage src="/blog/kubernetes-core_17.png" alt="kubernetes-core_17" />
+
+**annotations: nginx.ingress.kubernetes.io/rewrite-target: / ** is used to rewrite the URL path before forwarding the request to the backend service.
+This is useful when your backend service expects requests at the root path (`/`) but the incoming request has a different path (like `/apache-server`).
+
+---
+
+Wow! we have successfully deployed a simple web application using Kubernetes.
+
+But...
+
+Sorry, I need to tell you that this is just the beginning of your Kubernetes journey. This is not the production-ready setup. There are many more advanced topics to explore.
+
+Prepare yourself for the next articles where I will cover more advanced topics see you!.
