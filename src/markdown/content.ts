@@ -227,6 +227,13 @@ const securityContents: MarkdownContent[] = [
 
 const devopsContents: MarkdownContent[] = [
   {
+    id: "kong",
+    title: "KONG API Gateway with lua custom plugin",
+    desc: "KONG in kubernates cluster",
+    publishedAt: "2025-12-01",
+    tag: MarkdownTag.DEVOPS,
+  },
+  {
     id: "aws-network",
     title: "AWS 101 networking components ",
     desc: "Learn the networking components in AWS (VPC, Subnets, Route Tables, Internet Gateway, Security Groups)",

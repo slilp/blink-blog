@@ -1,0 +1,227 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+For Ingress controllers in Kubernetes, we have several options like NGINX Ingress, AWS ALB Ingress, and Traefik. However, when it comes to API Gateway capabilities with extensibility through custom plugins, Kong stands out as a robust solution.
+
+Kong is a powerful API Gateway and Ingress Controller that can be deployed on Amazon EKS (Elastic Kubernetes Service) to manage traffic routing, authentication, rate limiting, and custom business logic through Lua plugins.
+
+This article will covers setting up Kong on EKS with a custom API key authentication plugin.
+
+## Architecture Overview
+
+When deploying Kong on EKS:
+
+```
+Internet Traffic
+    ↓
+AWS Load Balancer (ELB)
+    ↓
+Kong Proxy (Pod in EKS)
+    ↓
+Backend Services (Kubernetes Services)
+```
+
+Kong acts as the entry point for all traffic and applies plugins to requests before routing them to backend services.
+
+## Setting Up Kong on EKS
+
+### Prerequisites
+
+- EKS cluster running
+- Helm package manager installed
+- kubectl configured to access your cluster
+- example service deployed (e.g., NGINX server)
+
+### Step 1: Create Namespaces
+
+First, create dedicated namespaces for Kong and your application:
+
+```bash
+kubectl create namespace my-app
+kubectl create namespace kong
+```
+
+### Step 2: Add Kong Helm Repository
+
+```bash
+helm repo add kong https://charts.konghq.com
+helm repo update
+```
+
+### Step 3: Create Custom Lua Plugin (ConfigMap)
+
+Your Lua plugin structure:
+
+<MdxImage src="/blog/kong_1.png" alt="kong_1" />
+
+```
+mylua/
+├── handler.lua  # Plugin logic
+└── schema.lua   # Configuration schema
+```
+
+**`mylua/handler.lua`:**
+
+```lua
+local BasePlugin = require "kong.plugins.base_plugin"
+local ApiKeyHandler = BasePlugin:extend()
+
+function ApiKeyHandler:new()
+  ApiKeyHandler.super.new(self, "simple-api-key")
+end
+
+function ApiKeyHandler:access(conf)
+  ApiKeyHandler.super.access(self)
+
+  local api_key = kong.request.get_header("x-api-key")
+  if not api_key or api_key ~= conf.valid_key then
+    return kong.response.exit(401, { message = "Invalid or missing API key" })
+  end
+end
+
+return ApiKeyHandler
+```
+
+**`mylua/schema.lua`:**
+
+```lua
+local typedefs = require "kong.db.schema.typedefs"
+
+return {
+  name = "simple-api-key",
+  fields = {
+    { config = {
+        type = "record",
+        fields = {
+          { valid_key = { type = "string", required = true } }
+        }
+      }
+    }
+  }
+}
+```
+
+- `handler.lua` contains the logic to check for a valid API key in the request header.
+- `schema.lua` defines the plugin configuration schema (expects a `valid_key` string).
+
+The Lua plugin files need to be available in the Kong pod. Create a ConfigMap from your Lua files:
+
+```bash
+kubectl create configmap simple-api-key-config --from-file=./mylua/ -n kong
+```
+
+### Step 4: Install Kong with Values File
+
+Create a `kong-values.yaml` file and install Kong:
+
+`kong-values.yaml` for EKS:
+
+```yaml
+replicaCount: 1
+
+image:
+  repository: kong
+  tag: "3.4"
+
+ingressController:
+  enabled: true
+
+proxy:
+  type: LoadBalancer
+  ports:
+    http:
+      port: 80
+      targetPort: 8000
+
+env:
+  database: "off"
+  log_level: "info"
+  plugins: "bundled,simple-api-key"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+rbac:
+  create: true
+
+deployment:
+  userDefinedVolumes:
+    - name: simple-api-key-config
+      configMap:
+        name: simple-api-key-config
+  userDefinedVolumeMounts:
+    - name: simple-api-key-config
+      mountPath: /usr/local/share/lua/5.1/kong/plugins/simple-api-key
+```
+
+```bash
+helm install kong kong/kong -n kong -f kong-values.yaml
+```
+
+Now, Kong should be running in your EKS cluster with the custom plugin mounted.
+
+### Last Step: Create Kong ingress Resource
+
+Create an ingress resource to route traffic to your backend service and apply the custom plugin:
+
+```yaml
+//my-ingress.yaml
+---
+# Kong Plugin Definition
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: api-key-check
+  namespace: my-app
+plugin: simple-api-key
+config:
+  valid_key: "my-secret-key-12345"
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-api
+  namespace: my-app
+  annotations:
+    konghq.com/plugins: "api-key-check"
+    kubernetes.io/ingress.class: kong
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-service
+                port:
+                  number: 80
+```
+
+KongPlugin is kind of a custom resource definition (CRD) provided by Kong to define plugins.
+
+```
+kubectl apply -f my-ingress.yaml
+```
+
+---
+
+Everything is set up! You can now send requests to the Kong LoadBalancer URL with the `x-api-key` header:
+
+To get your public IP of the Kong LoadBalancer:
+
+```bash
+kubectl get ingress -n my-app
+```
+
+<MdxImage src="/blog/kong_2.png" alt="kong_2" />
+
+Test sending request
+
+<MdxImage src="/blog/kong_3.png" alt="kong_3" />
