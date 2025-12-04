@@ -1,0 +1,273 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+CAUTION! : Before reading this article, please note that I am a developer, not a DevOps engineer. In this article, I'll explain Kubernetes concepts from a developer's perspective, focusing on architectural understanding rather than advanced DevOps implementation details.
+
+---
+
+If you haven't read about Kubernetes basics yet, please start with [Kubernetes Core Concepts](/blog/kubernetes-core) to understand Pods, Deployments, Services, and Ingress.
+
+## Deploy kubernetes components with YAML files
+
+In the previous article, I create a simple nginx deployment using command line but in real world, we usually use YAML files to define kubernetes components.
+
+This YAML file will create a namespace, deployment and service for nginx application.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-app
+  labels:
+    name: my-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: my-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.14.2
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: my-app
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+```
+
+```
+kubectl apply -f nginx-deployment.yaml
+```
+
+After you apply the YAML file, you can check the deployment and service are created successfully.
+
+<MdxImage src="/blog/kustomize_1.png" alt="kustomize_1" />
+
+## Kustomize for configuration management
+
+As you can see in the above example, if you want to create multiple environments like dev, staging, production, you need to create multiple YAML files with slight differences. This can lead to duplication and maintenance issues.
+
+Kustomize is a tool that helps you manage these configurations by allowing you to create a base configuration and then overlay environment-specific changes.
+
+<MdxImage src="/blog/kustomize_2.png" alt="kustomize_2" />
+
+You can see the structure above, where we have a base directory containing the common configuration and overlays for each environment.
+
+`kustomization.yaml`
+
+```
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: my-app
+
+resources:
+  - namespace.yaml
+  - nginx-deployment.yaml
+  - nginx-service.yaml
+
+commonLabels:
+  app: nginx
+  managed-by: kustomize
+
+commonAnnotations:
+  description: Nginx deployment for Kong backend
+```
+
+kustomization.yaml at base directory defines the common resources (your existing YAML files for any components you need)
+
+And for each environment, you can create an overlay directory with its own kustomization.yaml to specify the changes.
+
+`kustomization.yaml at prod`
+
+```
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: my-app
+
+bases:
+  - ../../base
+
+namePrefix: prod-
+
+commonLabels:
+  environment: prod
+
+commonAnnotations:
+  environment: production
+  description: Nginx Production environment
+
+replicas:
+  - name: nginx
+    count: 3
+
+```
+
+`kustomization.yaml at sit`
+
+```
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: my-app
+
+bases:
+  - ../../base
+
+namePrefix: sit-
+
+commonLabels:
+  environment: sit
+
+commonAnnotations:
+  environment: sit
+  description: Nginx SIT (System Integration Testing) environment
+
+replicas:
+  - name: nginx
+    count: 1
+```
+
+You can see that in the prod overlay, we are changing the number of replicas to 3 and adding environment-specific labels and annotations.
+
+```
+kubectl apply -k nginx-kustomize/overlays/prod
+
+kubectl apply -k nginx-kustomize/overlays/sit
+```
+
+<MdxImage src="/blog/kustomize_3.png" alt="kustomize_3" />
+
+Yeah! Now you have deployed nginx application to multiple environments using Kustomize with different configurations (in this example is replicas).
+
+---
+
+Okay, you see the evolution from using command line to YAML files and then to Kustomize for configuration management.
+
+You are closer to real-world Kubernetes deployment practices now.
+
+In the next article, I'll explain how to use ArgoCD for continuous deployment that is the last step to real-world Kubernetes deployment. Stay tuned!
+
+---
+
+## Bonus : Kubernetes UI Dashboard
+
+We will use [Lens UI](https://lenshq.io/) to visualize and manage our Kubernetes cluster.
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lens
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lens-ui
+  namespace: lens
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lens-ui
+  template:
+    metadata:
+      labels:
+        app: lens-ui
+    spec:
+      containers:
+      - name: lens
+        image: lens-proxy:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: KUBECONFIG
+          value: /etc/kubeconfig
+        volumeMounts:
+        - name: kubeconfig
+          mountPath: /etc/kubeconfig
+          subPath: kubeconfig
+      volumes:
+      - name: kubeconfig
+        configMap:
+          name: kubeconfig
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubeconfig
+  namespace: lens
+data:
+  kubeconfig: |
+    # Kubeconfig content will be added
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lens-ui
+  namespace: lens
+spec:
+  type: NodePort
+  selector:
+    app: lens-ui
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080
+```
+
+```
+kubectl apply -f lens-ui.yaml
+```
+
+For easy access, you can port-forward the service to your local machine:
+
+```
+kubectl port-forward -n kubernetes-dashboard svc/kubernetes-dashboard 8443:443 --address=127.0.0.1
+```
+
+<MdxImage src="/blog/kustomize_4.png" alt="kustomize_4" />
+
+Now, you can access the Kubernetes Dashboard at `https://localhost:30080` but you can see that to make it work, the UI need to set up a credential from cluster for login.
+
+In this article I will select the simplest way by creating a ServiceAccount and generate a token.
+
+```
+# Create service account
+kubectl create serviceaccount my-account-ui -n kubernetes-dashboard
+
+# Give it cluster-admin permissions (full edit access)
+kubectl create clusterrolebinding my-account-ui --clusterrole=cluster-admin --serviceaccount=kubernetes-dashboard:my-account-ui
+
+# Get token for this user
+kubectl -n kubernetes-dashboard create token my-account-ui
+```
+
+<MdxImage src="/blog/kustomize_5.png" alt="kustomize_5" />
+
+<MdxImage src="/blog/kustomize_6.png" alt="kustomize_6" />
+
+Everything is set! Now you can explore your Kubernetes cluster with a nice UI.

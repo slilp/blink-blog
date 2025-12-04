@@ -227,6 +227,13 @@ const securityContents: MarkdownContent[] = [
 
 const devopsContents: MarkdownContent[] = [
   {
+    id: "kustomize",
+    title: "Kubernetes - Part 2: YAML files and Kustomize",
+    desc: "Deploying applications to Kubernetes using YAML files and Kustomize for configuration management.",
+    publishedAt: "2025-12-04",
+    tag: MarkdownTag.DEVOPS,
+  },
+  {
     id: "kong",
     title: "KONG API Gateway with lua custom plugin",
     desc: "KONG in kubernates cluster",
