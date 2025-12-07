@@ -129,6 +129,13 @@ const goContents: MarkdownContent[] = [
 
 const softwareEngineerContents: MarkdownContent[] = [
   {
+    id: "k6",
+    title: "K6 for load testing",
+    desc: "Load testing made easy with K6 and beautiful dashboard on Grafana.",
+    publishedAt: "2025-12-07",
+    tag: MarkdownTag.SOFTWARE_DESIGN,
+  },
+  {
     id: "nginx",
     title: "Nginx functionalities",
     desc: "Functionalities of Nginx you should know.",

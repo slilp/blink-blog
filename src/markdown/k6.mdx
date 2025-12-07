@@ -1,0 +1,325 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+For me, load testing is an essential part for backend developer to ensure the performance and reliability of APIs under various traffic conditions.
+
+k6 is a modern load testing tool. When combined with Grafana, it provides powerful real-time visualization and analysis capabilities for your performance tests.
+
+This guide will walk you through setting up k6 with Grafana for load testing and monitoring.
+
+<MdxImage src="/blog/k6_1.png" alt="k6_1" />
+
+This is the folder structure of this project:
+
+- **config**: Configuration files for k6 tests
+- **monitoring**: Grafana and InfluxDB configuration for docker-compose
+- **performance**: Collection of load test scripts
+- **regression**: Collection of regression test scripts
+- **utils**: Utility functions for tests
+
+First, let's set up the monitoring stack with InfluxDB and Grafana using Docker Compose.
+
+```yaml
+version: "3.8"
+
+services:
+  influxdb:
+    image: influxdb:1.8
+    container_name: k6-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=k6
+      - INFLUXDB_HTTP_AUTH_ENABLED=false
+    volumes:
+      - ./monitoring/influxdb/data:/var/lib/influxdb
+    networks:
+      - k6-monitoring
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: k6-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    networks:
+      - k6-monitoring
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+
+networks:
+  k6-monitoring:
+    driver: bridge
+```
+
+## Writing k6 Tests
+
+`apiInstance.js`
+
+```javascript
+import http from "k6/http";
+import { config, endpoints, testUsers } from "../../config/config.js";
+
+const apiInstance = {
+  get: (path, options = {}, token) => {
+    const BASE_URL = `${config.baseUrl}${config.apiVersion}`;
+    const url = `${BASE_URL}${path}`;
+    const requestParams = mergeRequestParams(options, token);
+    return http.get(url, requestParams);
+  },
+
+  post: (path, payload, options = {}, token) => {
+    const BASE_URL = `${config.baseUrl}${config.apiVersion}`;
+    const url = `${BASE_URL}${path}`;
+    const requestParams = mergeRequestParams(options, token);
+    return http.post(url, JSON.stringify(payload), requestParams);
+  },
+
+  put: (path, payload, options = {}, token) => {
+    const BASE_URL = `${config.baseUrl}${config.apiVersion}`;
+    const url = `${BASE_URL}${path}`;
+    const requestParams = mergeRequestParams(options, token);
+    return http.put(url, JSON.stringify(payload), requestParams);
+  },
+
+  patch: (path, payload, options = {}, token) => {
+    const BASE_URL = `${config.baseUrl}${config.apiVersion}`;
+    const url = `${BASE_URL}${path}`;
+    const requestParams = mergeRequestParams(options, token);
+    return http.patch(url, JSON.stringify(payload), requestParams);
+  },
+
+  delete: (path, options = {}, token) => {
+    const BASE_URL = `${config.baseUrl}${config.apiVersion}`;
+    const url = `${BASE_URL}${path}`;
+    const requestParams = mergeRequestParams(options, token);
+    return http.del(url, null, requestParams);
+  },
+};
+
+function getAuthToken() {
+  const loginUrl = `${config.baseUrl}${endpoints.auth.login}`;
+  const payload = JSON.stringify({
+    email: testUsers.user.email,
+    password: testUsers.user.password,
+  });
+
+  const params = {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
+  const response = http.post(loginUrl, payload, params);
+
+  if (response.status === 200) {
+    try {
+      const body = JSON.parse(response.body);
+      return body.accessToken || null;
+    } catch (error) {
+      console.error(`Failed to parse auth response: ${error}`);
+      return null;
+    }
+  }
+
+  console.error(`Authentication failed: ${response.status} - ${response.body}`);
+  return null;
+}
+
+function mergeRequestParams(options, token) {
+  // Start with provided options (tags, headers, etc.)
+  const mergedParams = Object.assign({}, options);
+
+  // Merge headers - combine user headers with auth header
+  mergedParams.headers = Object.assign(
+    { "Content-Type": "application/json" },
+    options.headers || {},
+    token ? { Authorization: `Bearer ${token}` } : {}
+  );
+
+  // Add default timeout if not provided
+  if (!mergedParams.timeout) {
+    mergedParams.timeout = "30s";
+  }
+
+  return mergedParams;
+}
+
+export { apiInstance as default, getAuthToken };
+```
+
+`post-register.js`:
+
+```javascript
+import { check, sleep } from "k6";
+import apiInstance from "../utils/apiInstance.js";
+import { endpoints } from "../../config/config.js";
+import { commonChecks, randomEmail, randomString } from "../utils/helpers.js";
+
+export const options = {
+  stages: [
+    { duration: "5s", target: 10 }, // Ramp up to 10 users over 5 seconds
+    { duration: "5s", target: 10 }, // Stay at 10 users for 5 seconds
+    { duration: "5s", target: 0 }, // Ramp down to 0 users over 5 seconds
+  ],
+  thresholds: {
+    http_req_duration: ["p(95)<500", "p(99)<1000"],
+    http_req_failed: ["rate<0.01"],
+  },
+  tags: {
+    test_type: "load",
+    api: "post-register",
+    environment: __ENV.ENVIRONMENT || "local",
+  },
+};
+
+export default function () {
+  const payload = {
+    email: randomEmail(),
+    password: `Test@${randomString(12)}`,
+    displayName: `Test User ${randomString(5)}`,
+  };
+
+  const response = apiInstance.post(endpoints.auth.register, payload, {
+    tags: { name: "post_register" },
+  });
+
+  check(
+    response,
+    Object.assign(
+      {},
+      commonChecks.is201,
+      commonChecks.responseTimeLessThan(500)
+    )
+  );
+
+  sleep(1);
+}
+```
+
+For this test script, I'm testing the user registration endpoint with a ramp-up and ramp-down of virtual users. It's only 15 seconds because I just want to verify that everything is set up correctly. For a real load test, you should adjust the configuration to run for a longer duration with more virtual users.
+
+<MdxImage src="/blog/k6_2.png" alt="k6_2" />
+
+And when you export the result to InfluxDB, you can visualize the results in Grafana like this:
+
+<MdxImage src="/blog/k6_3.png" alt="k6_3" />
+
+If you test a secure path that requires authentication, you can create a utility function to get the auth token and use it in your test scripts.
+
+```javascript
+import { check, sleep } from "k6";
+import apiInstance, { getAuthToken } from "../utils/apiInstance.js";
+import { commonChecks, parseJson } from "../utils/helpers.js";
+import { endpoints } from "../../config/config.js";
+
+export const options = {
+  stages: [
+    { duration: "5s", target: 10 }, // Ramp up to 10 users over 5 seconds
+    { duration: "5s", target: 10 }, // Stay at 10 users for 5 seconds
+    { duration: "5s", target: 0 }, // Ramp down to 0 users over 5 seconds
+  ],
+  thresholds: {
+    http_req_duration: ["p(95)<500", "p(99)<1000"],
+    http_req_failed: ["rate<0.01"],
+  },
+  tags: {
+    test_type: "load",
+    api: "get-user-info",
+    environment: __ENV.ENVIRONMENT || "local",
+  },
+};
+
+export function setup() {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error("Failed to get authentication token");
+  }
+  return { token };
+}
+
+export default function (data) {
+  const response = apiInstance.get(
+    endpoints.user.get,
+    { tags: { name: "get-user-info" } },
+    data.token
+  );
+
+  check(
+    response,
+    Object.assign(
+      {},
+      commonChecks.is200,
+      commonChecks.hasBody,
+      commonChecks.isJson,
+      commonChecks.responseTimeLessThan(500),
+      {
+        "has userId": (r) => {
+          const body = parseJson(r);
+          return body && body.userId !== undefined;
+        },
+        "has email": (r) => {
+          const body = parseJson(r);
+          return body && body.email !== undefined;
+        },
+        "has displayName": (r) => {
+          const body = parseJson(r);
+          return body && body.displayName !== undefined;
+        },
+      }
+    )
+  );
+
+  sleep(1);
+}
+```
+
+And on grafana you can filter by api tag to see only the relevant metrics.
+
+<MdxImage src="/blog/k6_4.png" alt="k6_4" />
+
+## Reading Testing metrics
+
+As I show earlier, k6 provides a variety of built-in metrics and you can see them on grafana.
+
+Here are some key metrics you should know:
+
+<MdxImage src="/blog/k6_5.png" alt="k6_5" />
+
+**Total Requests**
+
+- **Metric**: `http_reqs`
+- Shows the total number of HTTP requests made during the test (sum of all requests)
+
+**Failed Requests**
+
+- **Metric**: `http_req_failed`
+- Counts requests with status ≠ 200
+
+**Avg Response Time**
+
+- **Metric**: `http_req_duration`
+- Shows average response time in milliseconds
+
+**Success Rate**
+
+- **Metric**: Calculated from `http_req_failed` (1 - failure_rate)
+
+**Active VUs**
+
+- **Metric**: `vus` (Virtual Users)
+- Shows current number of simulated users running
+
+**Current RPS**
+
+- **Metric**: `http_reqs` with derivative
+- Requests Per Second - current throughput (req/s)
