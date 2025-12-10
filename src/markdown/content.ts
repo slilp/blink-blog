@@ -234,6 +234,13 @@ const securityContents: MarkdownContent[] = [
 
 const devopsContents: MarkdownContent[] = [
   {
+    id: "kube-secret",
+    title: "Secrets management in Kubernetes with HashiCorp Vault",
+    desc: "Using HashiCorp Vault to manage secrets in a Kubernetes environment.",
+    publishedAt: "2025-12-08",
+    tag: MarkdownTag.DEVOPS,
+  },
+  {
     id: "kustomize",
     title: "Kubernetes - Part 2: YAML files and Kustomize",
     desc: "Deploying applications to Kubernetes using YAML files and Kustomize for configuration management.",
