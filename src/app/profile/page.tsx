@@ -61,7 +61,7 @@ export default function Page() {
                     size={20}
                   />
                   <IconButton
-                    path="https://www.linkedin.com/in/slil-puangpoom-1926b5154/"
+                    path="https://line.me/ti/p/22KbxkgAoV"
                     icon={FaLine}
                     size={20}
                   />
