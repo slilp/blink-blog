@@ -234,6 +234,13 @@ const securityContents: MarkdownContent[] = [
 
 const devopsContents: MarkdownContent[] = [
   {
+    id: "argocd",
+    title: "Kubernetes - Part 3: Go production with ArgoCD",
+    desc: "Production your kubernetes deployment with GitOps using ArgoCD.",
+    publishedAt: "2025-12-22",
+    tag: MarkdownTag.DEVOPS,
+  },
+  {
     id: "kube-secret",
     title: "Secrets management in Kubernetes with HashiCorp Vault",
     desc: "Using HashiCorp Vault to manage secrets in a Kubernetes environment.",

@@ -1,0 +1,192 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+CAUTION! : Before reading this article, please note that I am a developer, not a DevOps engineer. In this article, I'll explain Kubernetes concepts from a developer's perspective, focusing on architectural understanding rather than advanced DevOps implementation details.
+
+---
+
+After part 1 and part 2 of this series, we have set up a basic Kubernetes cluster on AWS using EKS and directly deployed a simple application with both command line and YAML files.
+
+Now, it's time to introduce Argo CD to manage our Kubernetes applications. This deployment flow is a best practice in the deployment of Kubernetes in production, known as GitOps.
+
+## Architecture of GitOps with ArgoCD
+
+<MdxImage src="/blog/argocd_1.png" alt="argocd_1" />
+
+For the architecture above, the flow 0f deploying is as follows:
+
+1. You push code to your application repository (e.g., `go-simple-api`).
+2. Your CI/CD pipeline (e.g., GitLab CI) builds the Docker image and pushes it to a container registry (e.g., AWS ECR).
+3. Your ArgoCD instance pull image from ECR and deploys the application to your Kubernetes cluster based on the configuration stored in a Git repository (e.g., `go-simple-api-gitops`).
+4. When changes are detected, ArgoCD automatically syncs the changes to your Kubernetes cluster.
+
+## Setting up ArgoCD
+
+### Step 1: Install ArgoCD
+
+```bash
+kubectl create namespace argocd
+
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Wait for readiness (2-3 minutes)
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+```
+
+### Step 2: Login to ArgoCD
+
+Login with CLI for using argo commands but you can see the UI as well
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+
+ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+
+argocd login localhost:8080 --username admin --password $ARGOCD_PASSWORD --insecure
+```
+
+Access the ArgoCD UI at `https://localhost:8080` with username `admin` and the password you retrieved above.
+
+<MdxImage src="/blog/argocd_2.png" alt="argocd_2" />
+
+### Step 3: Setup ECR Authentication
+
+As you see from the architecture diagram, our deployment uses private ECR (`581425340090.dkr.ecr.ap-southeast-1.amazonaws.com`), so we need to create image pull secrets for each namespace:
+
+```bash
+kubectl create namespace api-sit
+kubectl create namespace api-uat
+kubectl create namespace api-prod
+
+for NAMESPACE in api-sit api-uat api-prod; do
+  kubectl create secret docker-registry ecr-secret \
+    --docker-server=581425340090.dkr.ecr.ap-southeast-1.amazonaws.com \
+    --docker-username=AWS \
+    --docker-password=$(aws ecr get-login-password --region ap-southeast-1) \
+    -n $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+done
+```
+
+### Step 4: Add GitLab Authentication to ArgoCD
+
+This step is to allow ArgoCD to pull the Git repository that contains the Kubernetes manifests for deployment.
+
+```bash
+argocd repo add https://gitlab.com/slil.puangpoom/go-simple-api-gitops.git \
+  --username slil.puangpoom \
+  --password {{your_personal_access_token}}
+```
+
+<MdxImage src="/blog/argocd_3.png" alt="argocd_3" />
+
+Ok now we are ready to deploy our applications using ArgoCD!
+
+<MdxImage src="/blog/argocd_4.png" alt="argocd_4" />
+
+There are 3 services to deploy:
+
+- kong-ingress in SIT environment
+- kong-gateway in SIT environment
+- go-simple-api in SIT,UAT,PROD environment
+
+(in this article I will show you only the SIT deployment, and you can repeat the same steps for UAT and PROD.)
+
+For quick understand about the eks architecture.
+
+All path from kong-ingress will go to kong-gateway, and then kong-gateway will route the traffic to go-simple-api service or any other services base on your kong-gateway.
+
+### Step 5: Deploy Applications
+
+```bash
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: go-simple-api-uat
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://gitlab.com/slil.puangpoom/go-simple-api-gitops.git
+    targetRevision: main
+    path: go-simple-api/overlay/uat
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: api-uat
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+```
+
+Example structure of ArgoCD Application manifest.
+
+- **repoURL**: The GitLab repository URL containing your Kubernetes manifests
+- **targetRevision**: The Git branch to track (typically `main` or `master`)
+- **path**: The directory path within the repository where your Kustomize overlay or raw manifests are located (e.g., `go-simple-api/overlay/uat` for UAT environment)
+- **server**: The Kubernetes cluster API server URL. `https://kubernetes.default.svc` refers to the cluster where ArgoCD is installed
+- **namespace**: The target namespace where your application will be deployed (e.g., `api-uat` for UAT environment)
+
+Apply all application manifests:
+
+```bash
+kubectl apply -f argocd/
+```
+
+<MdxImage src="/blog/argocd_5.png" alt="argocd_5" />
+
+If your application status shows `Synced` and `Healthy`, congratulations! You have successfully deployed your application using ArgoCD.
+
+---
+
+Like the previous parts of this series, test your deployment by accessing the application through Kong Gateway.
+
+```bash
+kubectl get svc -n kong # Find the KONG_GATEWAY_SIT_URL from the EXTERNAL-IP of kong-gateway service
+```
+
+Then, test the application:
+
+Kong Ingress for SIT environment:
+
+This ingress makes /api/sit path that is used in kong ingress to separate the environment
+
+```bash
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: api-sit
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Ingress
+      name: kong-gateway-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/http/paths/0/path
+        value: "/api/sit"
+
+commonLabels:
+  environment: sit
+```
+
+```bash
+curl -i -X GET http://<KONG_GATEWAY_SIT_URL>/api/sit/health
+```
+
+<MdxImage src="/blog/argocd_6.png" alt="argocd_6" />
+
+You can see that the first response is 401 Unauthorized because your Kong Gateway have lua plugin authentication. That good! what we expected.
+
+---
+
+## From Dev to Dev
+
+If you read the series from part 1 to part 3, I don't expect that you become a Kubernetes or DevOps expert. My goal is to help developers understand the architecture and workflow of deploying applications on Kubernetes.
+
+Because when developers understand the architecture and workflow, they can collaborate better with DevOps engineers.
+
+> Enjoy your coding and happy (to learn) deploying!
