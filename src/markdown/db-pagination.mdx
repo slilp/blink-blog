@@ -1,0 +1,168 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+When you have large datasets in your database, querying all the data at once is not practical.
+
+> Pagination is a common technique to split the data into smaller chunks or "pages".
+
+Today, I'll show you 3 main pagination techniques that you can use in your daily work. (I will use GORM as the ORM for demonstration, but the concepts apply to any SQL database.)
+
+## 1. Offset-Based Pagination (LIMIT/OFFSET)
+
+I am sure most of you are familiar with this method. It is the simplest way to implement pagination.
+
+This method uses the `LIMIT` and `OFFSET` clauses to fetch a specific subset of rows.
+
+For example, to get page 90,000 with 100 records per page, we need to skip the first 8,999,900 records and fetch the next 100. (On the UI, it's like clicking "Go to page 90,000")
+
+```go
+func offsetPagination(db *gorm.DB, pageSize, page int) {
+	var users []User
+	offset := (page - 1) * pageSize
+
+	start := time.Now()
+	result := db.Limit(pageSize).Offset(offset).Find(&users)
+	duration := time.Since(start)
+
+	if result.Error != nil {
+		log.Printf("Error: %v\n", result.Error)
+		return
+	}
+
+	fmt.Printf("✓ Retrieved %d records in %d ms\n", len(users), duration.Milliseconds())
+}
+```
+
+**SQL Generated:**
+
+```sql
+SELECT * FROM users
+ORDER BY id
+LIMIT 100 OFFSET 8999900;
+```
+
+Compare page 10,000 and page 90,000:
+
+<MdxImage src="/blog/db-pagination_1.png" alt="db-pagination_1" />
+
+You can see that when requesting page 10,000 and page 90,000, the time taken increases significantly from ~300ms to ~2,200 seconds.
+
+**The problem is that the database has to scan and skip all the rows before the offset, which becomes slower as the offset increases.**
+
+So this method is good enough for small datasets or when your UI displays page numbers that allow users to jump to specific pages.
+
+---
+
+## 2. Seek/Cursor-Based Pagination
+
+Instead of skipping rows, cursor pagination uses a **WHERE clause** to jump directly to the desired position using an indexed column.
+
+```go
+func seekPagination(db *gorm.DB, pageSize, targetPage int) {
+	var users []User
+
+	lastID := uint((targetPage - 1) * pageSize)
+
+	fmt.Printf("Assuming sequential IDs: calculated cursor (lastID) = %d\n", lastID)
+
+	start := time.Now()
+	result := db.Where("id > ?", lastID).Order("id ASC").Limit(pageSize).Find(&users)
+	duration := time.Since(start)
+
+	if result.Error != nil {
+		log.Printf("Error: %v\n", result.Error)
+		return
+	}
+
+	fmt.Printf("✓ Retrieved %d records in %d ms\n", len(users), duration.Milliseconds())
+}
+```
+
+**SQL Generated:**
+
+```sql
+SELECT * FROM users
+WHERE id > 8999900
+ORDER BY id ASC
+LIMIT 100;
+```
+
+Compare page 10,000 and page 90,000:
+
+<MdxImage src="/blog/db-pagination_2.png" alt="db-pagination_2" />
+
+As you can see, it's very fast. The time taken remains consistently low (< ~10ms) regardless of the page number.
+
+However, the main constraints of this method are:
+
+- You need to know the last seen record's unique identifier (cursor) to fetch the next set of records.
+- Your key column must be ordered and indexed (usually the primary key or a timestamp).
+
+---
+
+## 3. Deferred Join Pagination
+
+This hybrid approach optimizes offset pagination by splitting it into two queries.
+
+```go
+func deferredJoinPagination(db *gorm.DB, pageSize, page int) {
+   offset := (page - 1) * pageSize
+
+	start := time.Now()
+
+	// Step 1: Fetch only IDs with OFFSET (lightweight - only reading ID column)
+	var ids []uint
+	subqueryStart := time.Now()
+	result := db.Model(&User{}).
+		Select("id").
+		Offset(offset).
+		Limit(pageSize).
+		Order("id ASC").
+		Pluck("id", &ids)
+	subqueryDuration := time.Since(subqueryStart)
+
+	if result.Error != nil {
+		log.Printf("Error in subquery: %v\n", result.Error)
+		return
+	}
+
+	// Step 2: Fetch full records only for those IDs (no offset needed)
+	var users []User
+	joinStart := time.Now()
+	if len(ids) > 0 {
+		result = db.Where("id IN ?", ids).Order("id ASC").Find(&users)
+		if result.Error != nil {
+			log.Printf("Error in join: %v\n", result.Error)
+			return
+		}
+	}
+	joinDuration := time.Since(joinStart)
+
+	totalDuration := time.Since(start)
+
+	fmt.Printf("✓ Retrieved %d records in %d ms\n", len(users), totalDuration.Milliseconds())
+	fmt.Printf("  Breakdown: Subquery (IDs only): %d ms, Join (full data): %d ms\n",
+		subqueryDuration.Milliseconds(), joinDuration.Milliseconds())
+}
+```
+
+**SQL Generated:**
+
+```sql
+-- Step 1: Get IDs only (narrow table scan)
+SELECT id FROM users
+ORDER BY id
+LIMIT 100 OFFSET 8999900;
+
+-- Step 2: Get full data (no offset)
+SELECT * FROM users
+WHERE id IN (8999901, 8999902, ..., 9000000)
+ORDER BY id;
+```
+
+Compare page 10,000 and page 90,000:
+
+<MdxImage src="/blog/db-pagination_3.png" alt="db-pagination_3" />
+
+The time taken still increases depending on the page number, but it is significantly lower than traditional offset pagination.
+
+This method is a good compromise when you need to support jumping to arbitrary pages while keeping performance acceptable.
