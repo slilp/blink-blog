@@ -1,0 +1,286 @@
+import MdxImage from "../component/mdx/MdxImage";
+
+When working with databases, one of the most critical performance optimizations is using batch operations instead of individual queries.
+
+This content might be familiar to most developers, but I wanted to document it with actual performance metrics rather than just theoretical knowledge.
+
+## Insert Operation
+
+In this example I will demonstrate three different methods to insert 5,000 records into a database using GORM (Go ORM)
+
+- Individual Inserts (Slow)
+- Concurrent Individual Inserts (Faster)
+- Batch Insert (Fastest)
+
+```go
+func performanceComparison(db *gorm.DB) {
+	recordCount := 5000
+
+	// Test 1: Individual inserts (slow)
+	fmt.Println("\nMethod 1: Individual Inserts - Sequential (One INSERT per record)")
+	start := time.Now()
+	for i := 0; i < recordCount; i++ {
+		user := User{
+			Username: fmt.Sprintf("single_%d", i),
+			Email:    fmt.Sprintf("single_%d@example.com", i),
+		}
+		if err := db.Create(&user).Error; err != nil {
+			log.Printf("Error: %v\n", err)
+			return
+		}
+	}
+	singleDuration := time.Since(start)
+	fmt.Printf("✓ Inserted %d records in %d ms (%.2f ms per record)\n",
+		recordCount, singleDuration.Milliseconds(), float64(singleDuration.Milliseconds())/float64(recordCount))
+
+	// Test 2: Individual inserts with concurrent goroutines
+	fmt.Println("\nMethod 2: Individual Inserts - Concurrent (150 goroutines)")
+	numWorkers := 150
+	jobs := make(chan int, recordCount)
+	var wg sync.WaitGroup
+	var errCount int
+	var successCount int
+	var mu sync.Mutex
+	var lastErr error
+
+	// Worker function
+	worker := func() {
+		defer wg.Done()
+		for i := range jobs {
+			user := User{
+				Username: fmt.Sprintf("concurrent_%d", i),
+				Email:    fmt.Sprintf("concurrent_%d@example.com", i),
+			}
+			if err := db.Create(&user).Error; err != nil {
+				mu.Lock()
+				errCount++
+				lastErr = err
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				successCount++
+				mu.Unlock()
+			}
+		}
+	}
+
+	start = time.Now()
+
+	// Start workers
+	for w := 0; w < numWorkers; w++ {
+		wg.Add(1)
+		go worker()
+	}
+
+	// Send jobs
+	for i := 0; i < recordCount; i++ {
+		jobs <- i
+	}
+	close(jobs)
+
+	// Wait for all workers to finish
+	wg.Wait()
+	concurrentDuration := time.Since(start)
+
+	if errCount > 0 {
+		fmt.Printf("⚠ Completed with %d errors, %d successful inserts\n", errCount, successCount)
+		if lastErr != nil {
+			fmt.Printf("  Last error: %v\n", lastErr)
+		}
+	} else {
+		fmt.Printf("✓ Inserted %d records in %d ms (%.2f ms per record)\n",
+			successCount, concurrentDuration.Milliseconds(), float64(concurrentDuration.Milliseconds())/float64(successCount))
+	}
+	fmt.Printf("  Using %d concurrent workers\n", numWorkers)
+
+	// Test 3: Batch insert (fast)
+	fmt.Println("\nMethod 3: Batch Insert (One INSERT for all records)")
+	users := make([]User, recordCount)
+	for i := 0; i < recordCount; i++ {
+		users[i] = User{
+			Username: fmt.Sprintf("batch_%d", i),
+			Email:    fmt.Sprintf("batch_%d@example.com", i),
+		}
+	}
+
+	start = time.Now()
+	if err := db.Create(&users).Error; err != nil {
+		log.Printf("Error: %v\n", err)
+		return
+	}
+	batchDuration := time.Since(start)
+	fmt.Printf("✓ Inserted %d records in %d ms (%.2f ms per record)\n",
+		recordCount, batchDuration.Milliseconds(), float64(batchDuration.Milliseconds())/float64(recordCount))
+
+	// Comparison
+	fmt.Println("\n--- Performance Comparison ---")
+	fmt.Printf("Sequential:  %d ms\n", singleDuration.Milliseconds())
+	fmt.Printf("Concurrent:  %d ms (%.2fx faster than sequential)\n",
+		concurrentDuration.Milliseconds(),
+		float64(singleDuration.Milliseconds())/float64(concurrentDuration.Milliseconds()))
+	fmt.Printf("Batch:       %d ms (%.2fx faster than sequential, %.2fx faster than concurrent)\n",
+		batchDuration.Milliseconds(),
+		float64(singleDuration.Milliseconds())/float64(batchDuration.Milliseconds()),
+		float64(concurrentDuration.Milliseconds())/float64(batchDuration.Milliseconds()))
+}
+```
+
+<MdxImage src="/blog/db-batch_1.png" alt="db-batch_1" />
+
+As you already know, inserting records one by one is very slow and event you use concurrent insert, batch insert is still the most efficient way.
+
+## Update Operation
+
+```go
+func updatePerformanceComparison(db *gorm.DB) {
+	recordCount := 5000
+
+	// First, prepare test data - insert records to update
+	fmt.Println("\nPreparing test data...")
+	testUsers := make([]User, recordCount)
+	for i := 0; i < recordCount; i++ {
+		testUsers[i] = User{
+			Username: fmt.Sprintf("update_test_%d", i),
+			Email:    fmt.Sprintf("update_test_%d@example.com", i),
+		}
+	}
+	if err := db.Create(&testUsers).Error; err != nil {
+		log.Printf("Error preparing test data: %v\n", err)
+		return
+	}
+	fmt.Printf("✓ Prepared %d records for update testing\n", recordCount)
+
+	// Test 1: Sequential individual updates
+	fmt.Println("\nMethod 1: Individual Updates - Sequential (One UPDATE per record)")
+	start := time.Now()
+	for i := 0; i < recordCount; i++ {
+		if err := db.Model(&User{}).
+			Where("id = ?", testUsers[i].ID).
+			Update("email", fmt.Sprintf("seq_updated_%d@example.com", i)).Error; err != nil {
+			log.Printf("Error: %v\n", err)
+			return
+		}
+	}
+	sequentialDuration := time.Since(start)
+	fmt.Printf("✓ Updated %d records in %d ms (%.2f ms per record)\n",
+		recordCount, sequentialDuration.Milliseconds(), float64(sequentialDuration.Milliseconds())/float64(recordCount))
+
+	// Test 2: Concurrent individual updates with 200 goroutines
+	fmt.Println("\nMethod 2: Individual Updates - Concurrent (200 goroutines)")
+	numWorkers := 200
+	jobs := make(chan int, recordCount)
+	var wg sync.WaitGroup
+	var errCount int
+	var successCount int
+	var mu sync.Mutex
+	var lastErr error
+
+	// Worker function
+	worker := func() {
+		defer wg.Done()
+		for i := range jobs {
+			if err := db.Model(&User{}).
+				Where("id = ?", testUsers[i].ID).
+				Update("email", fmt.Sprintf("concurrent_updated_%d@example.com", i)).Error; err != nil {
+				mu.Lock()
+				errCount++
+				lastErr = err
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				successCount++
+				mu.Unlock()
+			}
+		}
+	}
+
+	start = time.Now()
+
+	// Start workers
+	for w := 0; w < numWorkers; w++ {
+		wg.Add(1)
+		go worker()
+	}
+
+	// Send jobs
+	for i := 0; i < recordCount; i++ {
+		jobs <- i
+	}
+	close(jobs)
+
+	// Wait for all workers to finish
+	wg.Wait()
+	concurrentDuration := time.Since(start)
+
+	if errCount > 0 {
+		fmt.Printf("⚠ Completed with %d errors, %d successful updates\n", errCount, successCount)
+		if lastErr != nil {
+			fmt.Printf("  Last error: %v\n", lastErr)
+		}
+	} else {
+		fmt.Printf("✓ Updated %d records in %d ms (%.2f ms per record)\n",
+			successCount, concurrentDuration.Milliseconds(), float64(concurrentDuration.Milliseconds())/float64(successCount))
+	}
+	fmt.Printf("  Using %d concurrent workers\n", numWorkers)
+
+	// Test 3: Batch update using SQL CASE statement
+	fmt.Println("\nMethod 3: Batch Update (Single SQL with CASE statement)")
+
+	// Build CASE statement for batch update
+	start = time.Now()
+
+	// Method 1: Update all with same value (simplest batch update)
+	result := db.Model(&User{}).
+		Where("id IN ?", getIDs(testUsers)).
+		Update("email", "batch_updated@example.com")
+
+	batchDuration := time.Since(start)
+
+	if result.Error != nil {
+		log.Printf("Error: %v\n", result.Error)
+		return
+	}
+
+	fmt.Printf("✓ Updated %d records in %d ms (%.2f ms per record)\n",
+		result.RowsAffected, batchDuration.Milliseconds(), float64(batchDuration.Milliseconds())/float64(recordCount))
+
+	// Test 4: Batch update with different values per record using Updates
+	fmt.Println("\nMethod 4: Batch Update with Different Values (Using transaction)")
+
+	start = time.Now()
+	err := db.Transaction(func(tx *gorm.DB) error {
+		for i := 0; i < recordCount; i++ {
+			testUsers[i].Email = fmt.Sprintf("batch_different_%d@example.com", i)
+		}
+		// Update in batches
+		return tx.Save(&testUsers).Error
+	})
+
+	saveDuration := time.Since(start)
+
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("✓ Updated %d records in %d ms (%.2f ms per record)\n",
+		recordCount, saveDuration.Milliseconds(), float64(saveDuration.Milliseconds())/float64(recordCount))
+
+	// Comparison
+	fmt.Println("\n--- Performance Comparison ---")
+	fmt.Printf("Sequential:         %d ms\n", sequentialDuration.Milliseconds())
+	fmt.Printf("Concurrent (200):   %d ms (%.2fx faster than sequential)\n",
+		concurrentDuration.Milliseconds(),
+		float64(sequentialDuration.Milliseconds())/float64(concurrentDuration.Milliseconds()))
+	fmt.Printf("Batch (same value): %d ms (%.2fx faster than sequential, %.2fx faster than concurrent)\n",
+		batchDuration.Milliseconds(),
+		float64(sequentialDuration.Milliseconds())/float64(batchDuration.Milliseconds()),
+		float64(concurrentDuration.Milliseconds())/float64(batchDuration.Milliseconds()))
+	fmt.Printf("Batch (diff value): %d ms (%.2fx faster than sequential, %.2fx faster than concurrent)\n",
+		saveDuration.Milliseconds(),
+		float64(sequentialDuration.Milliseconds())/float64(saveDuration.Milliseconds()),
+		float64(concurrentDuration.Milliseconds())/float64(saveDuration.Milliseconds()))
+}
+```
+
+<MdxImage src="/blog/db-batch_2.png" alt="db-batch_2" />

@@ -207,6 +207,13 @@ const algorythmContents: MarkdownContent[] = [];
 
 const databaseContents: MarkdownContent[] = [
   {
+    id: "db-batch",
+    title: "Database batch operations",
+    desc: "Improve performance with batch operations.",
+    publishedAt: "2025-12-28",
+    tag: MarkdownTag.DATABASE,
+  },
+  {
     id: "database-indexing",
     title: "Database indexing",
     desc: "Make your queries faster with indexing.",
