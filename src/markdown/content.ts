@@ -214,6 +214,13 @@ const databaseContents: MarkdownContent[] = [
     tag: MarkdownTag.DATABASE,
   },
   {
+    id: "db-bulk",
+    title: "Database bulk operations",
+    desc: "What you should be aware of when performing bulk operations.",
+    publishedAt: "2026-01-19",
+    tag: MarkdownTag.DATABASE,
+  },
+  {
     id: "database-indexing",
     title: "Database indexing",
     desc: "Make your queries faster with indexing.",

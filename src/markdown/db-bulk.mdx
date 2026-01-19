@@ -1,0 +1,65 @@
+Bulk operations are common ways to handle large amounts of data efficiently in databases.
+
+However, they come with challenges that you need to be aware of.
+
+## Parameter Limits
+
+When performing bulk inserts or updates, you often construct SQL statements with multiple parameters.
+
+The parameters are calculated based on the number of rows and columns you are inserting or updating.
+
+For example, inserting 10,000 rows with 3 columns each results in 30,000 parameters. That mean if you have a lot of columns, you can easily exceed the database's parameter limit even with a little number of rows.
+
+Different database systems have different parameter limits:
+
+**PostgreSQL** : 65,535
+
+```
+ERROR: bind message supplies 65536 parameters, but prepared statement "" requires 0
+```
+
+**MySQL** : 65,535
+
+```
+ERROR 1390: Prepared statement contains too many placeholders
+```
+
+## Size Limits
+
+Databases also have limits on the size of a single SQL statement.
+
+**PostgreSQL** : ~1 GB (limited by available memory, no hard configuration)
+
+**MySQL** : 1 MB (default `max_allowed_packet`, can be increased up to 1 GB)
+
+```
+ERROR 1153: Got a packet bigger than 'max_allowed_packet' bytes
+```
+
+When inserting large text fields, binary data, or many rows in a single statement, you may hit these limits before reaching parameter limits.
+
+## Bonus : How about NoSQL databases, MongoDB ?
+
+MongoDB has its own set of bulk operation limits:
+
+**Operations per batch** : 100,000 operations (Not depend on how many fields of each document)
+
+```
+MongoBulkWriteError: Batch write error
+```
+
+**Document size** : 16 MB
+
+Each individual document cannot exceed 16 MB (BSON size limit).
+
+```
+MongoError: document is larger than the maximum size 16777216
+```
+
+**Total message size** : 48 MB
+
+The total size of all documents in a single bulk operation cannot exceed 48 MB. This is the wire protocol limit.
+
+---
+
+Bulk operations are powerful tools for database efficiency, but be mindful of limiting factors on each database system you use and always calculated the appropriate batch sizes for your bulk operations.
